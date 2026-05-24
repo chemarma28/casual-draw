@@ -1,238 +1,214 @@
-export function distance(A: number[]) {
-    if (A.length > 2)
-        throw new Error("Unsupported operation exception.");
+const INF: number = 1000;
 
-    return Math.sqrt(
-        Math.pow(A[0], 2)
-        + Math.pow(A[1], 2)
-    )
+export type Vector = { x: number; y: number };
+
+export type Rectangle = {
+    x: Vector;
+    width: number;
+    height: number;
+};
+
+export type Arc = {
+    begin: Vector;
+    mid: Vector;
+    end: Vector;
+};
+
+export type RectangleEdges = {
+    north: [Vector, Vector];
+    west: [Vector, Vector];
+    south: [Vector, Vector];
+    east: [Vector, Vector];
+};
+
+export interface Boundary {
+    bound(): Rectangle;
 }
 
-export function arg(v: number[]): number {
-    if (v.length > 2)
-        throw new Error("Unsupported operation exception.");
+type Matrix2d = [[number, number], [number, number]];
+type Matrix3d = [
+    [number, number, number],
+    [number, number, number],
+    [number, number, number],
+];
+type VectorColumn = [number, number];
 
+function edges(b: Rectangle): RectangleEdges {
+    const { x: x0, width, height } = b;
+    const { x, y } = x0;
+
+    const x00 = { x, y };
+    const x01 = { x: x, y: y + height };
+    const x11 = { x: x + width, y: y + height };
+    const x10 = { x: x + width, y: y };
+
+    return {
+        north: [x10, x00],
+        west: [x00, x01],
+        south: [x01, x11],
+        east: [x11, x10],
+    };
+}
+
+export function distance(A: Vector) {
+    return Math.sqrt(Math.pow(A.x, 2) + Math.pow(A.y, 2));
+}
+
+export function arg(v: Vector): number {
     const d = distance(v);
-    let [x, y] = v;
+
+    let { x, y } = v;
+
     x /= d;
     y /= d;
 
-    if (x >= 0 && y >= 0)
-        return Math.acos(x);
+    if (x >= 0 && y >= 0) return Math.acos(x);
 
-    if (x <= 0 && y >= 0)
-        return Math.acos(x);
+    if (x <= 0 && y >= 0) return Math.acos(x);
 
-    if (x <= 0 && y <= 0)
-        return -Math.acos(x);
+    if (x <= 0 && y <= 0) return -Math.acos(x);
 
-    if (x >= 0 && y <= 0)
-        return Math.asin(y);
+    if (x >= 0 && y <= 0) return Math.asin(y);
 }
 
-export function normal(A: number[], B: number[]): number[] {
-    if (A.length > 2 || B.length > 2)
-        throw new Error("Unsupported operation exception.");
+export function normal(A: Vector, B: Vector): Vector {
+    const x = B.x - A.x;
+    const y = B.y - A.y;
 
-    const a1 = B[0] - A[0];
-    const a2 = B[1] - A[1];
-    const l = distance([a1, a2]);
+    const l = distance({ x, y });
 
-    return [-a2 / l, a1 / l];
+    return { x: -y / l, y: x / l };
 }
 
-export function dot(v: number[], u: number[]) {
-    return v.reduce((accumulator, _, i) => accumulator + v[i] * u[i], 0);
+export function dot(v: Vector, u: Vector): number {
+    return v.x * u.x + v.y + u.y;
 }
 
-export function det(m: number[][]): number {
-    if (m.length === 1)
-        return m[0][0];
+export function det(m: [[number]] | Matrix3d | Matrix2d): number {
+    if (m.length === 1) return m[0][0];
 
-    if (m.length === 2)
-        return m[0][0] * m[1][1] - m[1][0] * m[0][1];
+    if (m.length === 2) return m[0][0] * m[1][1] - m[1][0] * m[0][1];
 
     if (m.length === 3)
-        return m[0][0] * m[1][1] * m[2][2]
-            + m[0][1] * m[1][2] * m[2][0]
-            + m[0][2] * m[1][0] * m[2][1]
-            - m[0][2] * m[1][1] * m[2][0]
-            - m[0][0] * m[1][2] * m[2][1]
-            - m[0][1] * m[1][0] * m[2][2];
+        return (
+            m[0][0] * m[1][1] * m[2][2] +
+            m[0][1] * m[1][2] * m[2][0] +
+            m[0][2] * m[1][0] * m[2][1] -
+            m[0][2] * m[1][1] * m[2][0] -
+            m[0][0] * m[1][2] * m[2][1] -
+            m[0][1] * m[1][0] * m[2][2]
+        );
 
-    throw new Error("Unsupported operation exception.");
+    return 0;
 }
 
-export function linearSolve(A: number[][], b: number[]): number[] {
-    if (A.length > 2 || A[0].length > 2)
-        throw new Error("Unsupported operation exception.");
-
-    if (b.length !== A.length)
-        throw new Error(`Incompatible shapes. (${A.length}, ${A[0].length}) and (${b.length})`);
-
+export function linearSolve(A: Matrix2d, b: VectorColumn): number[] {
     return [
-        -(A[1][1] * b[0] - A[0][1] * b[1])
-        / (A[0][1] * A[1][0] - A[0][0] * A[1][1]),
-        -(-A[1][0] * b[0] + A[0][0] * b[1])
-        / (A[0][1] * A[1][0] - A[0][0] * A[1][1])
-    ]
+        -(A[1][1] * b[0] - A[0][1] * b[1]) /
+            (A[0][1] * A[1][0] - A[0][0] * A[1][1]),
+        -(-A[1][0] * b[0] + A[0][0] * b[1]) /
+            (A[0][1] * A[1][0] - A[0][0] * A[1][1]),
+    ];
 }
-
-const INF: number = 1000;
 
 export function floyd(w: number[][]): number[][] {
     const n = w.length;
 
     let d = [...Array(n)].map((_, row) => {
-        return w[row].map((el, col) => col === row || el === 0 ? INF : el);
+        return w[row].map((el, col) => (col === row || el === 0 ? INF : el));
     });
 
     for (let k = 0; k < n; k++)
         for (let i = 0; i < n; i++)
             for (let j = 0; j < n; j++)
-                d[i][j] = Math.min(
-                    d[i][j],
-                    d[i][k] + d[k][j]
-                );
+                d[i][j] = Math.min(d[i][j], d[i][k] + d[k][j]);
 
     return d;
 }
 
-export function isLeftTriple(points: number[][]): boolean {
-    if (points.length > 3)
-        throw new Error("Unsupported operation exception.");
+export function clockwise(begin: Vector, mid: Vector, end: Vector): boolean {
+    const v = { x: mid.x - begin.x, y: mid.y - begin.y };
+    const u = { x: end.x - mid.x, y: end.y - mid.y };
 
-    const [x, y, z] = points;
-    const ax = z[0] - x[0];
-    const ay = z[1] - x[1];
-
-    return dot([y[0] - x[0], y[1] - x[1]], [ay, -ax]) < 0;
+    return 0 < v.x * u.y - u.x * v.y;
 }
 
-export function circleCenter(points: number[][]): number[] {
-    if (points.length > 3)
-        throw new Error("Unsupported operation exception.");
+// rename to counterclockwise
+export function isLeftTriple(points: Vector[]): boolean {
+    const [p1, p2, p3] = points;
+    const ax = p3.x - p1.x;
+    const ay = p3.y - p1.y;
 
-    let [[x1, y1], [x2, y2], [x3, y3]] = points;
-
-    if (x2 - x1 === 0 || x3 - x2 === 0)
-        x2 += 0.1;
-
-    let ma = (y2 - y1) / (x2 - x1);
-    const mb = (y3 - y2) / (x3 - x2);
-
-    if (Math.abs(ma) < 0.001)
-        ma = Math.sign(ma) * 0.001;
-
-    let x = 0;
-
-    if (mb - ma !== 0)
-        x = (ma * mb * (y1 - y3)
-            + mb * (x1 + x2)
-            - ma * (x2 + x3))
-            / (2 * (mb - ma));
-
-    return [
-        x,
-        (x - (x1 + x2) / 2) / (-ma)
-        + (y1 + y2) / 2
-    ];
+    return dot({ x: p2.x - p1.x, y: p2.y - p1.y }, { x: ay, y: -ax }) < 0;
 }
 
-export function arcSegmentPoint(points: number[][], line: number[][]): number[] {
-    let [[x1, y1], [x2, y2], [x3, y3]] = points;
+export function circumcenter(A: Vector, B: Vector, C: Vector): Vector {
+    const m1 = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
+    const m2 = { x: (B.x + C.x) / 2, y: (B.y + C.y) / 2 };
 
-    const [ax, ay] = [x2 - x1, y2 - y1];
+    const n1 = { x: A.y - B.y, y: B.x - A.x };
+    const n2 = { x: B.y - C.y, y: C.x - B.x };
 
-    if (Math.abs(det([[ax, ay], [x3 - x2, y3 - y2]])) < 0.001) {
-        const l = distance([ax, ay]);
+    const t =
+        (n1.x * (m2.y - m1.y) - n1.y * (m2.x - m1.x)) /
+        (n1.y * n2.x - n1.x * n2.y);
 
-        [x2, y2] = [x2 - 5 * ay / l, y2 + 5 * ax / l];
-    }
+    const x = m2.x + n2.x * t;
+    const y = m2.y + n2.y * t;
 
-    const [x0, y0] = circleCenter([[x1, y1], [x2, y2], [x3, y3]]);
-    const r = distance([x0 - x3, y0 - y3]);
-    const leftQ1 = isLeftTriple([[x1, y1], [x2, y2], [x3, y3]]);
-    const [[xa, ya], [xb, yb]] = line;
-
-    const d = Math.pow(xa - xb, 2) + Math.pow(ya - yb, 2);
-    const sqr = Math.pow(r, 2) * d
-        - Math.pow(
-            - xb * y0
-            - x0 * ya
-            + xb * ya
-            + xa * (y0 - yb)
-            + x0 * yb,
-            2)
-
-    if (sqr < 0)
-        return [];
-
-    const t1 = ((xa - x0) * (xa - xb)
-        + Math.pow(ya, 2)
-        + y0 * yb
-        - ya * (y0 + yb)
-        - Math.sqrt(sqr)
-    ) / d;
-
-    if (0 <= t1 && t1 <= 1) {
-        let [x, y] = [(1 - t1) * xa + t1 * xb, (1 - t1) * ya + t1 * yb];
-
-        let leftQ2 = isLeftTriple([[x1, y1], [x, y], [x3, y3]]);
-
-        if (leftQ1 === leftQ2)
-            return [x, y];
-    }
-
-    const t2 = ((xa - x0) * (xa - xb)
-        + Math.pow(ya, 2)
-        + y0 * yb
-        - ya * (y0 + yb)
-        + Math.sqrt(sqr)
-    ) / d;
-
-    if (0 <= t2 && t2 <= 1) {
-        let [x, y] = [(1 - t2) * xa + t2 * xb, (1 - t2) * ya + t2 * yb];
-
-        let leftQ2 = isLeftTriple([
-            [x1, y1],
-            [x, y],
-            [x3, y3]
-        ]);
-
-        if (leftQ1 === leftQ2)
-            return [x, y];
-    }
-
-    return [];
+    return { x, y };
 }
 
-export function arcRectPoint(arc: number[][], rect: number[]): number[] {
-    const [x0, y0, width, height] = rect;
-    const lines = [
-        [[x0, y0], [x0, y0 + height]],
-        [[x0, y0], [x0 + width, y0]],
-        [[x0 + width, y0], [x0 + width, y0 + height]],
-        [[x0, y0 + height], [x0 + width, y0 + height]]
-    ]
-
-    for (let line of lines) {
-        const result = arcSegmentPoint(arc, line);
-
-        if (result.length > 0)
-            return result
-    }
-
-    return [];
+// remove later
+export function circleCenter() {
+    return [0, 0];
 }
 
-export function hasIntersection(rect1: number[], rect2: number[]) {
-    let [x1, y1, w1, h1] = rect1;
-    let [x2, y2, w2, h2] = rect2;
+// renamte to arcAndSegmentIntersection
+export function arcSegmentPoint(
+    arc: Arc,
+    segment: [Vector, Vector],
+): Vector | undefined {
+    return undefined;
+}
 
-    if ((x2 < x1 && x1 < x2 + w2) || (x2 < x1 + w1 && x1 + w1 < x2 + w2)) {
-        return (y2 < y1 && y1 < y2 + h2) || (y2 < y1 + h1 && y1 + h1 < y2 + h2);
+// rename to arcAndBoundaryIntersection
+export function arcRectPoint(arc: Arc, b: Rectangle): Vector | null {
+    const { north, west, south, east } = edges(b);
+
+    const intersections = [];
+
+    for (let bound of [north, west, south, east]) {
+        const intersection = arcSegmentPoint(arc, bound);
+
+        if (undefined != intersection) intersections.push(intersection);
     }
 
-    return false;
+    const min = 0;
+    let index = -1;
+
+    for (let i = 0; i < intersections.length; ++i) {
+        const point = intersections[i];
+        const d = distance({
+            x: point.x - arc.begin.x,
+            y: point.y - arc.begin.y,
+        });
+
+        if (d < min) index = i;
+    }
+
+    return -1 < index ? intersections[index] : null;
+}
+
+// rename to intersects
+export function hasIntersection(b1: Rectangle, b2: Rectangle): boolean {
+    const { x: x10, width: w1, height: h1 } = b1;
+    const { x: x20, width: w2, height: h2 } = b2;
+    const { x: x1, y: y1 } = x10;
+    const { x: x2, y: y2 } = x20;
+
+    return (
+        Math.max(x1, x2) <= Math.min(x1 + w1, x2 + w2) ||
+        Math.max(y1, y2) <= Math.min(y1 + h1, y2 + h2)
+    );
 }

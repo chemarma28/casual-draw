@@ -1,19 +1,14 @@
 {
     "compilerOptions": {
-        "target": "ES2022",
-        "module": "ES2022",
-        "rootDir": "./src/ts",
-        "outDir": "./lib",
-        "sourceMap": true,
         "noEmitOnError": true,
-        "forceConsistentCasingInFileNames": true,
-        "skipLibCheck": true
+        "rootDir": "./src",
+        "outDir": "./dist",
+        "target": "es2020",
+        "sourceMap": true,
+        "strict": false,
+        "allowJs": true,
+        "isolatedModules": true
     },
-    "include": [
-        "src/ts/**/*.ts"
-    ],
-    "exclude": [
-        "lib/**/*",
-        "node_modules"
-    ]
+    "include": ["src/**/*.ts"],
+    "exclude": ["lib", "node_modules", "dist"]
 }

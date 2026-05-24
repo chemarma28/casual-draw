@@ -1,4 +1,4 @@
-import { floyd, linearSolve } from "../math.js";
+import { floyd, linearSolve } from "./math";
 
 export class KKLayout {
     private l: number[][];

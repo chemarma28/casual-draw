@@ -3,62 +3,17 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Casual Draw</title>
-    <link href="./index.css" rel="stylesheet" />
+    <!-- <link href="index.css" rel="stylesheet" /> -->
+    <link href="src/styles/index.scss" rel="stylesheet" />
 </head>
 
 <body>
-    <div id="content">
-        <div class="section" id="editor-container">
-            <div class="section-header" id="editor-header">
-                <div class="section-header-title">
-                    <span>Code Editor</span>
-                </div>
-
-                <div class="section-header-button-bar">
-                    <button id="compile-button">
-                        <span>Compile</span>
-                    </button>
-                </div>
-            </div>
-
-            <div>
-                <div id="editor"></div>
-            </div>
-        </div>
-
-        <div class="section" id="canvas-container">
-            <div class="section-header" id="canvas-header">
-                <div class="section-header-title">
-                    <span>Diagram</span>
-                </div>
-
-                <div class="section-header-button-bar">
-                    <div class="tooltip">
-                        <button id="export-button">
-                            <span>Export</span>
-                        </button>
-
-                        <span class="tooltip-text" id="export-button-tooltip">Export as .PNG</span>
-                    </div>
-                </div>
-            </div>
-
-            <div id="error-container">
-                <div id="error-window">
-                    <div class="error-line"></div>
-                </div>
-            </div>
-
-            <div>
-                <canvas id="canvas" width="200" height="200"></canvas>
-            </div>
-        </div>
+    <div id="frame">
+        <canvas id="canvas"></canvas>
     </div>
 
-    <script src="./lib/codeflask.min.js"></script>
-    <script type="module" src="./src/index.js"></script>
+    <!-- <script src="lib/codeflask.min.js"></script> -->
+    <script type="module" src="src/ts/main.ts"></script>
 </body>
 
 </html>

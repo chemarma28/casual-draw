@@ -1,4 +1,4 @@
-import { distance, normal, dot } from "../math.js";
+import { distance, normal, dot } from "./math";
 
 class FRVertex {
     public x: number;
@@ -19,7 +19,7 @@ class FRDummyVertex extends FRVertex {
     constructor(x: number, y: number, nx: number, ny: number) {
         super(x, y);
 
-        const l = distance([nx, ny]);
+        const l = distance({x: nx, y: ny});
 
         this.nx = nx / l;
         this.ny = ny / l;
@@ -65,7 +65,7 @@ export class FRLayout {
             for (let j = 0; j < n; j++) {
                 if (adjacency[i][j] !== 0 && i !== j) {
                     const u = this.vertices[j];
-                    const [nx, ny] = normal([v.x, v.y], [u.x, u.y]);
+                    const {x: nx, y: ny} = normal({x: v.x, y: v.y}, {x: u.x, y: u.y});
 
                     const dummy = new FRDummyVertex(
                         (v.x + u.x) / 2,
@@ -106,12 +106,12 @@ export class FRLayout {
 
             for (let v of this.vertices) {
                 if (v instanceof FRDummyVertex) {
-                    const disp = distance([v.dispX, v.dispY]);
+                    const disp = distance({x: v.dispX, y: v.dispY});
 
                     v.dispX = (v.dispX / disp) * Math.min(disp, temperature * this.k);
                     v.dispY = (v.dispY / disp) * Math.min(disp, temperature * this.k);
 
-                    const p = dot([v.dispX, v.dispY], [v.nx, v.ny]);
+                    const p = dot({x: v.dispX, y: v.dispY}, {x: v.nx, y: v.ny});
 
                     v.x += p * v.nx;
                     v.y += p * v.ny;
@@ -157,7 +157,7 @@ export class FRLayout {
 
                 const deltaX = v.x - u.x;
                 const deltaY = v.y - u.y;
-                const delta = distance([deltaX, deltaY]);
+                const delta = distance({x: deltaX, y: deltaY});
 
                 const repulsiveF = this.repulsiveForce(delta);
                 v.dispX += (deltaX / delta) * repulsiveF;
@@ -173,7 +173,7 @@ export class FRLayout {
 
             const deltaX = v.x - u.x;
             const deltaY = v.y - u.y;
-            const delta = distance([deltaX, deltaY]);
+            const delta = distance({x: deltaX, y: deltaY});
             const attractiveF = this.attrativeForce(delta);
 
             v.dispX -= (deltaX / delta) * attractiveF;
