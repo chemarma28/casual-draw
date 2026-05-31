@@ -1,30 +1,53 @@
-import { translateToWorld, translateToClient, Graphics } from "./graphics";
-import { Boundary, distance, Rectangle, Vector } from "./math";
+import { translateToWorld } from "./graphics";
+import { distance2, Vector } from "./math";
 
-export class Locator implements Boundary {
+var locators: Array<Locator> = [];
+var capture: Locator = undefined;
+
+export class Locator {
     x: number;
     y: number;
-    r: number = 5;
+    _r: number;
+    _r2: number;
     background = "rgba(0, 0, 0, 0.3)";
-    hover = false;
-    fluent = false;
 
     constructor(x: number, y: number, size?: number) {
         this.x = x;
         this.y = y;
         this.r = size || 7;
+
+        locators.push(this);
     }
 
-    pivot(): Vector {
+    set r(r: number) {
+        this._r = r;
+        this._r2 = Math.pow(r, 2);
+    }
+
+    get r(): number {
+        return this._r;
+    }
+
+    get r2(): number {
+        return this._r2;
+    }
+
+    origin(): Vector {
         return { x: this.x, y: this.y };
     }
 
-    bound(): Rectangle {
-        return {
-            x: { x: this.x - this.r, y: this.y - this.r },
-            width: 2 * this.r,
-            height: 2 * this.r,
-        };
+    isPointInLocator(p: Vector) {
+        const d = distance2({ x: this.x - p.x, y: this.y - p.y });
+
+        return d <= this.r2;
+    }
+
+    enable() {
+        capture = this;
+    }
+
+    disable() {
+        capture = undefined;
     }
 
     draw(ctx: CanvasRenderingContext2D) {
@@ -47,48 +70,50 @@ export class Locator implements Boundary {
         ctx.stroke();
         ctx.fill();
     }
+}
 
-    listening(canvas: HTMLCanvasElement) {
-        canvas.addEventListener("mousedown", (e: MouseEvent) => {
-            const world = translateToWorld(canvas, {
-                x: e.clientX,
-                y: e.clientY,
-            });
+export function getLocatorByPoint(p: Vector): Locator {
+    for (let locator of locators)
+        if (locator.isPointInLocator(p)) return locator;
 
-            if (this.hitBy(world)) {
-                this.fluent = true;
-                this.hover = true;
-            }
-        });
+    return undefined;
+}
 
-        canvas.addEventListener("mouseup", (e: MouseEvent) => {
-            this.fluent = false;
-        });
+export function locatorCapture(): Locator {
+    return capture;
+}
 
-        canvas.addEventListener("mousemove", (e: MouseEvent) => {
-            if (!this.fluent) return;
+export function dispatchLocatorEvent(e: MouseEvent) {
+    const point = translateToWorld(e.currentTarget as HTMLCanvasElement, {
+        x: e.clientX,
+        y: e.clientY,
+    });
 
-            const world = translateToWorld(canvas, {
-                x: e.clientX,
-                y: e.clientY,
-            });
+    const locator = getLocatorByPoint(point);
 
-            this.x = world.x;
-            this.y = world.y;
-        });
+    if (!locatorCapture()) locator?.enable();
 
-        return this;
-    }
+    e.currentTarget.addEventListener("mousemove", changeLocatorOrigin);
+    e.currentTarget.addEventListener("mouseup", dispose);
+}
 
-    painting(g: Graphics) {
-        g.push(this);
+function changeLocatorOrigin(e: MouseEvent) {
+    if (!capture) return;
 
-        return this;
-    }
+    const point = translateToWorld(e.currentTarget as HTMLCanvasElement, {
+        x: e.clientX,
+        y: e.clientY,
+    });
 
-    hitBy(p: Vector): boolean {
-        const d = distance({ x: this.x - p.x, y: this.y - p.y });
+    capture.x = point.x;
+    capture.y = point.y;
+}
 
-        return d < this.r;
-    }
+function dispose(e: MouseEvent) {
+    if (!capture) return;
+
+    capture.disable();
+
+    e.currentTarget.removeEventListener("mousemove", changeLocatorOrigin);
+    e.currentTarget.removeEventListener("mouseup", dispose);
 }

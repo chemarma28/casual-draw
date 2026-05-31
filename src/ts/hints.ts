@@ -1,6 +1,6 @@
-import { translateToWorld } from "./graphics";
-import { Locator } from "./locator";
-import { Boundary } from "./math";
+import { translateToClient, translateToWorld } from "./graphics";
+import { getLocatorByPoint, Locator } from "./locator";
+import { circleBoundingRectangle, Rectangle } from "./math";
 
 export class Hint {
     element: HTMLDivElement;
@@ -34,7 +34,7 @@ export class Hint {
         this.visible = true;
     }
 
-    top(target: Boundary, timeout = 250) {
+    top(target: Rectangle, timeout = 250) {
         if (this.visible) return;
 
         this.show();
@@ -44,17 +44,16 @@ export class Hint {
             const w = b.width;
             const h = b.height;
 
-            const targetBoundary = target.bound();
-            const tx = targetBoundary.x.x;
-            const ty = targetBoundary.x.y;
-            const tw = targetBoundary.width;
-            const th = targetBoundary.height;
+            const tx = target.x.x;
+            const ty = target.x.y;
+            const tw = target.width;
+            const th = target.height;
 
             const x = tx + tw / 2;
             const y = ty + th / 2;
 
-            this.element.style.left = `${x}px`;
-            this.element.style.top = `${y - th / 2 - h / 2 - 10}px`;
+            this.element.style.left = `${x - w / 2}px`;
+            this.element.style.top = `${y - th / 2 - h - 10}px`;
         });
 
         this.timeoutid = setTimeout(() => {
@@ -63,29 +62,61 @@ export class Hint {
     }
 }
 
-export class Hints {
-    container: HTMLElement;
-    canvas: HTMLCanvasElement;
+var canvas: HTMLCanvasElement = document.getElementById(
+    "canvas",
+) as HTMLCanvasElement;
+var container: HTMLElement = document.getElementById("overlay");
 
-    constructor(container: HTMLElement, canvas: HTMLCanvasElement) {
-        this.container = container;
-        this.canvas = canvas;
+var hints: Map<Locator, Hint> = new Map();
+var hintCapture: Hint = undefined;
+
+export function hintLocator(
+    locator: Locator,
+    placeholder: string,
+    timeout = 500,
+): Locator {
+    const hint = new Hint(container, placeholder);
+
+    hints.set(locator, hint);
+
+    return locator;
+}
+
+export function dispatchHintEvent(e: MouseEvent) {
+    const point = translateToWorld(canvas, { x: e.clientX, y: e.clientY });
+
+    const locator = getLocatorByPoint(point);
+
+    if (!locator) {
+        disposeHintCapture();
+        return;
     }
 
-    locator(placeholder: string, locator: Locator, timeout = 500): Hint {
-        const hint = new Hint(this.container, placeholder);
+    hintCapture = hints.get(locator);
 
-        this.canvas.addEventListener("mousemove", (e) => {
-            const pointer = translateToWorld(this.canvas, {
-                x: e.clientX,
-                y: e.clientY,
-            });
+    if (!hintCapture) return;
 
-            if (locator.hitBy(pointer) && !locator.fluent)
-                hint.top(locator, timeout);
-            else hint.hide();
-        });
+    const bounds = circleBoundingRectangle({
+        origin: { x: locator.x, y: locator.y },
+        r: locator.r,
+    });
 
-        return hint;
-    }
+    const x0 = translateToClient(canvas, bounds.x);
+    const x1 = translateToClient(canvas, {
+        x: bounds.x.x + bounds.width,
+        y: bounds.x.y + bounds.height,
+    });
+
+    const target = {
+        x: x0,
+        width: x1.x - x0.x,
+        height: x1.y - x0.y,
+    };
+
+    hintCapture.top(target, 500);
+}
+
+export function disposeHintCapture() {
+    hintCapture?.hide();
+    hintCapture = undefined;
 }

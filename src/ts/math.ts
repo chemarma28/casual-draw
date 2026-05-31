@@ -2,6 +2,11 @@ const INF: number = 1000;
 
 export type Vector = { x: number; y: number };
 
+export type Circumference = {
+    origin: Vector;
+    r: number;
+};
+
 export type Rectangle = {
     x: Vector;
     width: number;
@@ -14,26 +19,22 @@ export type Arc = {
     end: Vector;
 };
 
-export type RectangleEdges = {
+export type Bounds = {
     north: [Vector, Vector];
     west: [Vector, Vector];
     south: [Vector, Vector];
     east: [Vector, Vector];
 };
 
-export interface Boundary {
-    bound(): Rectangle;
-}
+type Matrix2 = [[number, number], [number, number]];
 
-type Matrix2d = [[number, number], [number, number]];
-type Matrix3d = [
+type Matrix3 = [
     [number, number, number],
     [number, number, number],
     [number, number, number],
 ];
-type VectorColumn = [number, number];
 
-function edges(b: Rectangle): RectangleEdges {
+export function rectangleBounds(b: Rectangle): Bounds {
     const { x: x0, width, height } = b;
     const { x, y } = x0;
 
@@ -50,8 +51,20 @@ function edges(b: Rectangle): RectangleEdges {
     };
 }
 
-export function distance(A: Vector) {
-    return Math.sqrt(Math.pow(A.x, 2) + Math.pow(A.y, 2));
+export function circleBoundingRectangle(c: Circumference): Rectangle {
+    return {
+        x: { x: c.origin.x - c.r, y: c.origin.y - c.r },
+        width: 2 * c.r,
+        height: 2 * c.r,
+    };
+}
+
+export function distance(v: Vector) {
+    return Math.sqrt(distance2(v));
+}
+
+export function distance2(v: Vector) {
+    return Math.pow(v.x, 2) + Math.pow(v.y, 2);
 }
 
 export function arg(v: Vector): number {
@@ -84,7 +97,7 @@ export function dot(v: Vector, u: Vector): number {
     return v.x * u.x + v.y + u.y;
 }
 
-export function det(m: [[number]] | Matrix3d | Matrix2d): number {
+export function det(m: [[number]] | Matrix3 | Matrix2): number {
     if (m.length === 1) return m[0][0];
 
     if (m.length === 2) return m[0][0] * m[1][1] - m[1][0] * m[0][1];
@@ -102,7 +115,7 @@ export function det(m: [[number]] | Matrix3d | Matrix2d): number {
     return 0;
 }
 
-export function linearSolve(A: Matrix2d, b: VectorColumn): number[] {
+export function linearSolve(A: Matrix2, b: [number, number]): number[] {
     return [
         -(A[1][1] * b[0] - A[0][1] * b[1]) /
             (A[0][1] * A[1][0] - A[0][0] * A[1][1]),
@@ -133,15 +146,6 @@ export function clockwise(begin: Vector, mid: Vector, end: Vector): boolean {
     return 0 < v.x * u.y - u.x * v.y;
 }
 
-// rename to counterclockwise
-export function isLeftTriple(points: Vector[]): boolean {
-    const [p1, p2, p3] = points;
-    const ax = p3.x - p1.x;
-    const ay = p3.y - p1.y;
-
-    return dot({ x: p2.x - p1.x, y: p2.y - p1.y }, { x: ay, y: -ax }) < 0;
-}
-
 export function circumcenter(A: Vector, B: Vector, C: Vector): Vector {
     const m1 = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
     const m2 = { x: (B.x + C.x) / 2, y: (B.y + C.y) / 2 };
@@ -159,48 +163,6 @@ export function circumcenter(A: Vector, B: Vector, C: Vector): Vector {
     return { x, y };
 }
 
-// remove later
-export function circleCenter() {
-    return [0, 0];
-}
-
-// renamte to arcAndSegmentIntersection
-export function arcSegmentPoint(
-    arc: Arc,
-    segment: [Vector, Vector],
-): Vector | undefined {
-    return undefined;
-}
-
-// rename to arcAndBoundaryIntersection
-export function arcRectPoint(arc: Arc, b: Rectangle): Vector | null {
-    const { north, west, south, east } = edges(b);
-
-    const intersections = [];
-
-    for (let bound of [north, west, south, east]) {
-        const intersection = arcSegmentPoint(arc, bound);
-
-        if (undefined != intersection) intersections.push(intersection);
-    }
-
-    const min = 0;
-    let index = -1;
-
-    for (let i = 0; i < intersections.length; ++i) {
-        const point = intersections[i];
-        const d = distance({
-            x: point.x - arc.begin.x,
-            y: point.y - arc.begin.y,
-        });
-
-        if (d < min) index = i;
-    }
-
-    return -1 < index ? intersections[index] : null;
-}
-
-// rename to intersects
 export function hasIntersection(b1: Rectangle, b2: Rectangle): boolean {
     const { x: x10, width: w1, height: h1 } = b1;
     const { x: x20, width: w2, height: h2 } = b2;
@@ -211,4 +173,87 @@ export function hasIntersection(b1: Rectangle, b2: Rectangle): boolean {
         Math.max(x1, x2) <= Math.min(x1 + w1, x2 + w2) ||
         Math.max(y1, y2) <= Math.min(y1 + h1, y2 + h2)
     );
+}
+
+export type Vertex = number | string;
+
+export type Edge = {
+    begin: Vertex;
+    end: Vertex;
+    weight: number;
+};
+
+export class GraphDefinition {
+    vertices = new Set<Vertex>();
+    edges = new Set<Edge>();
+
+    join(v: Vertex, u: Vertex, weight = 1) {
+        this.vertices.add(v);
+        this.vertices.add(u);
+
+        this.edges.add({ begin: v, end: u, weight });
+    }
+
+    bijoin(v: Vertex, u: Vertex, weight = 1) {
+        this.join(u, v, weight);
+        this.join(v, u, weight);
+    }
+}
+
+export class IndexedVerticesGraph {
+    edges: Set<Edge>;
+    // purpose is to fast obtain index by vertex
+    private vertices: Map<Vertex, number>;
+    // purpose is to fast obtain vertex by index
+    verts: Vertex[];
+
+    constructor(source: GraphDefinition) {
+        const size = source.vertices.size;
+
+        this.vertices = new Map<Vertex, number>();
+        this.verts = new Array<Vertex>(size);
+
+        let index = 0;
+
+        for (let v of source.vertices) {
+            this.vertices.set(v, index);
+            this.verts[index] = v;
+            ++index;
+        }
+
+        this.edges = source.edges;
+    }
+
+    vertex(index: number) {
+        return this.verts[index];
+    }
+
+    index(v: Vertex): number {
+        return this.vertices.get(v);
+    }
+
+    size(): number {
+        return this.verts.length;
+    }
+
+    adjacency(): number[][] {
+        const size = this.vertices.size;
+
+        const matrix = [...Array(size)].map(() => {
+            const row = [...Array(size)];
+
+            for (let col = 0; col < size; ++col) row[col] = 0;
+
+            return row;
+        });
+
+        for (let edge of this.edges) {
+            const begin = this.vertices.get(edge.begin);
+            const end = this.vertices.get(edge.end);
+
+            matrix[begin][end] = edge.weight;
+        }
+
+        return matrix;
+    }
 }

@@ -1,9 +1,16 @@
-import { Arc, Graphics } from "./graphics";
-import { Locator } from "./locator";
-import { Hint, Hints } from "./hints";
-import { translateToWorld } from "./graphics";
+import { demo1 } from "./demos/demo1";
+import { Arc, drawRectlinearLayout, grid } from "./graphics";
+import { dispatchHintEvent, disposeHintCapture, hintLocator } from "./hints";
+import { dispatchLocatorEvent, Locator, locatorCapture } from "./locator";
+import {
+    dispatchTranslatingEvent,
+    disposeTranslating,
+    isTranslating,
+    transform,
+    zoom,
+} from "./transforms";
 
-const FRAME = document.getElementById("frame");
+const overlay = document.getElementById("overlay");
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const ctx = canvas.getContext("2d");
 
@@ -17,41 +24,58 @@ const resizeObserver = new ResizeObserver(() => {
 
 resizeObserver.observe(canvas);
 
-const g = [] as Graphics;
+const p1 = hintLocator(new Locator(200, 200), "p1");
+const p2 = hintLocator(new Locator(500, 235), "p2");
+const p3 = hintLocator(new Locator(600, 450), "p3");
 
-const p1 = new Locator(150, 160).listening(canvas).painting(g);
-const p2 = new Locator(220, 185).listening(canvas).painting(g);
-const p3 = new Locator(250, 250).listening(canvas).painting(g);
+const arc = new Arc(p1.origin(), p2.origin(), p3.origin());
 
-const hint = new Hints(FRAME, canvas);
+canvas.addEventListener("wheel", (e: WheelEvent) => {
+    zoom(e);
+});
 
-hint.locator("p1", p1);
-hint.locator("p2", p2);
-hint.locator("p3", p3);
+canvas.addEventListener("mousedown", (e: MouseEvent) => {
+    dispatchLocatorEvent(e);
 
-const line = { begin: p1.pivot(), end: p3.pivot() };
-// const circumference = new Circumference(p1.origin(), p3.origin(), p2.origin());
-const arc = new Arc(p1.pivot(), p2.pivot(), p3.pivot());
+    if (locatorCapture()) return;
+
+    dispatchTranslatingEvent(e);
+});
+
+canvas.addEventListener("mousemove", (e: MouseEvent) => {
+    if (isTranslating() || locatorCapture()) disposeHintCapture();
+
+    dispatchHintEvent(e);
+});
+
+canvas.addEventListener("mouseleave", (e: MouseEvent) => {
+    disposeTranslating(e);
+});
 
 function lifecycle() {
-    arc.arcscribe(p1.pivot(), p2.pivot(), p3.pivot());
-
     canvas.width = width;
     canvas.height = height;
 
+    transform(ctx);
+
     ctx.save();
 
-    ctx.beginPath();
+    grid(canvas);
 
-    ctx.stroke();
-
+    arc.arcscribe(p1.origin(), p2.origin(), p3.origin());
     arc.draw(ctx);
 
-    for (let el of g) el.draw(ctx);
+    p1.draw(ctx);
+    p2.draw(ctx);
+    p3.draw(ctx);
+
+    drawRectlinearLayout(ctx, demo1);
 
     ctx.restore();
 
     requestAnimationFrame(lifecycle);
 }
 
-lifecycle();
+window.addEventListener("load", () => {
+    lifecycle();
+});

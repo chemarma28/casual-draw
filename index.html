@@ -5,13 +5,34 @@
     <meta charset="UTF-8" />
     <!-- <link href="index.css" rel="stylesheet" /> -->
     <link href="src/styles/index.scss" rel="stylesheet" />
+    <link href="src/styles/font-awesome.min.css" rel="stylesheet" />
 </head>
 
 <body>
-    <div id="frame">
-        <canvas id="canvas"></canvas>
+    <header>
+        <span>Causality (PoC)</span>
+    </header>
+
+    <div id="content">
+        <div class="vertical-split-pane">
+            <div id="lft-pane" class="left">
+                left
+            </div>
+
+            <div id="rh" class="resize-handle">
+                <div class="resize-mark">
+                    <i class="fa fa-lg fa-arrows-h"></i>
+                </div>
+            </div>
+
+            <div class="right">
+                <canvas id="canvas"></canvas>
+                <div id="overlay"></div>
+            </div>
+        </div>
     </div>
 
+    <script type="module" src="src/ts/splitpane.ts"></script>
     <!-- <script src="lib/codeflask.min.js"></script> -->
     <script type="module" src="src/ts/main.ts"></script>
 </body>

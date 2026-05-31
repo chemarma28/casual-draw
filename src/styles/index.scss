@@ -9,13 +9,73 @@ $tooltip-color: #2f3a4c;
 
 body,
 html {
+    height: 100%;
     margin: 0px;
     padding: 0px;
 }
 
-#frame {
-    height: 100vh;
-    border: 12px solid $border-color;
+header {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding-left: 8px;
+
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    background-color: $border-color;
+}
+
+#content {
+    box-sizing: border-box;
+    height: calc(100% - 32px);
+}
+
+#overlay {
+    z-index: 10;
+}
+
+.vertical-split-pane {
+    display: flex;
+    height: 100%;
+
+    .left {
+        max-width: 50%;
+        width: 30%;
+        background-color: lightblue;
+    }
+
+    .right {
+        flex-grow: 1;
+    }
+
+    .resize-handle {
+        position: relative;
+
+        cursor: ew-resize;
+        background-color: $border-color;
+        width: 10px;
+
+        color: white;
+
+        .resize-mark {
+            position: absolute;
+            box-sizing: border-box;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            width: 32px;
+            height: 32px;
+
+            border-radius: 100px;
+            transform: translateX(calc(-50% + 5px));
+            top: 40%;
+
+            background-color: $border-color;
+        }
+    }
 }
 
 canvas {
