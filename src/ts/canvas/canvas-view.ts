@@ -8,8 +8,6 @@ export type RenderCallback = (
 ) => void;
 
 export class CanvasView {
-    readonly viewport = new Viewport();
-
     private readonly ctx: CanvasRenderingContext2D;
     private readonly resizeObserver: ResizeObserver;
     private readonly onWindowResize = () => this.resize();
@@ -25,6 +23,7 @@ export class CanvasView {
 
     constructor(
         private readonly canvas: HTMLCanvasElement,
+        private readonly viewport: Viewport,
         private readonly render: RenderCallback,
     ) {
         this.ctx = require2DContext(canvas);
