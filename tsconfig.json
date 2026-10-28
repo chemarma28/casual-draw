@@ -14,10 +14,7 @@
     ],
     "exclude": [
         "dist",
-        "lib",
         "node_modules",
-        "src/js",
-        "src/ts/index.ts",
         "src/ts/lexer.ts"
     ]
 }

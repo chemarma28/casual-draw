@@ -1,3 +1,4 @@
+import "./splitpane";
 import { demo1 } from "./demos/demo1";
 import { byId, require2DContext } from "./dom";
 import { Arc, drawRectlinearLayout, grid } from "./graphics";

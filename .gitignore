@@ -118,8 +118,3 @@ Thumbs.db
 !.gitignore
 !.nvmrc
 !.phpcs.xml.dist
-
-# resources
-!/lib/
-/lib/**
-!/lib/codeflask.min.js
