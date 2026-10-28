@@ -1,8 +1,9 @@
-import { translateToWorld } from "./graphics";
+import { Viewport } from "./canvas/viewport";
 import { distance2, Vector } from "./math";
 
 var locators: Array<Locator> = [];
 var capture: Locator | undefined = undefined;
+var activeViewport: Viewport | undefined = undefined;
 
 export class Locator {
     x: number;
@@ -83,19 +84,23 @@ export function locatorCapture(): Locator | undefined {
     return capture;
 }
 
-export function dispatchLocatorEvent(e: MouseEvent) {
+export function dispatchLocatorEvent(e: MouseEvent, viewport: Viewport) {
     const target = e.currentTarget as HTMLCanvasElement | null;
 
-    if (!target) return;
+    if (!target || locatorCapture()) return;
 
-    const point = translateToWorld(target, {
-        x: e.clientX,
-        y: e.clientY,
+    const rect = target.getBoundingClientRect();
+    const point = viewport.screenToWorld({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
     });
 
     const locator = getLocatorByPoint(point);
 
-    if (!locatorCapture()) locator?.enable();
+    if (!locator) return;
+
+    activeViewport = viewport;
+    locator.enable();
 
     target.addEventListener("mousemove", changeLocatorOrigin);
     target.addEventListener("mouseup", dispose);
@@ -104,12 +109,13 @@ export function dispatchLocatorEvent(e: MouseEvent) {
 function changeLocatorOrigin(e: Event) {
     const target = e.currentTarget as HTMLCanvasElement | null;
 
-    if (!capture || !target) return;
+    if (!capture || !target || !activeViewport) return;
 
     const event = e as MouseEvent;
-    const point = translateToWorld(target, {
-        x: event.clientX,
-        y: event.clientY,
+    const rect = target.getBoundingClientRect();
+    const point = activeViewport.screenToWorld({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
     });
 
     capture.x = point.x;

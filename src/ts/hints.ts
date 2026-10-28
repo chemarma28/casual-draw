@@ -1,5 +1,5 @@
+import { Viewport } from "./canvas/viewport";
 import { byId } from "./dom";
-import { translateToClient, translateToWorld } from "./graphics";
 import { getLocatorByPoint, Locator } from "./locator";
 import { circleBoundingRectangle, Rectangle } from "./math";
 
@@ -39,22 +39,20 @@ export class Hint {
 
         this.show();
 
-        requestAnimationFrame(() => {
-            const b = this.element.getBoundingClientRect();
-            const w = b.width;
-            const h = b.height;
+        const b = this.element.getBoundingClientRect();
+        const w = b.width;
+        const h = b.height;
 
-            const tx = target.x.x;
-            const ty = target.x.y;
-            const tw = target.width;
-            const th = target.height;
+        const tx = target.x.x;
+        const ty = target.x.y;
+        const tw = target.width;
+        const th = target.height;
 
-            const x = tx + tw / 2;
-            const y = ty + th / 2;
+        const x = tx + tw / 2;
+        const y = ty + th / 2;
 
-            this.element.style.left = `${x - w / 2}px`;
-            this.element.style.top = `${y - th / 2 - h - 10}px`;
-        });
+        this.element.style.left = `${x - w / 2}px`;
+        this.element.style.top = `${y - th / 2 - h - 10}px`;
 
         this.timeoutid = setTimeout(() => {
             this.element.style.visibility = "visible";
@@ -80,8 +78,12 @@ export function hintLocator(
     return locator;
 }
 
-export function dispatchHintEvent(e: MouseEvent) {
-    const point = translateToWorld(canvas, { x: e.clientX, y: e.clientY });
+export function dispatchHintEvent(e: MouseEvent, viewport: Viewport) {
+    const rect = canvas.getBoundingClientRect();
+    const point = viewport.screenToWorld({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+    });
 
     const locator = getLocatorByPoint(point);
 
@@ -99,8 +101,8 @@ export function dispatchHintEvent(e: MouseEvent) {
         r: locator.r,
     });
 
-    const x0 = translateToClient(canvas, bounds.x);
-    const x1 = translateToClient(canvas, {
+    const x0 = viewport.worldToScreen(bounds.x);
+    const x1 = viewport.worldToScreen({
         x: bounds.x.x + bounds.width,
         y: bounds.x.y + bounds.height,
     });

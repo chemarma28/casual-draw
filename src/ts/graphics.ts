@@ -1,4 +1,3 @@
-import { require2DContext } from "./dom";
 import {
     circumcenter,
     clockwise,
@@ -6,100 +5,6 @@ import {
     IndexedVerticesGraph,
     Vector,
 } from "./math";
-
-var screenWidth = window.screen.width;
-var screenHeight = window.screen.height;
-
-export function translateToWorld(
-    canvas: HTMLCanvasElement,
-    client: Vector,
-): Vector {
-    const offsets = canvas.getBoundingClientRect();
-    const ctx = require2DContext(canvas);
-
-    const relative = new DOMMatrixReadOnly().translate(
-        client.x - offsets.left,
-        client.y - offsets.top,
-        1,
-    );
-
-    const m = ctx.getTransform().inverse().multiply(relative);
-    const x = m.e;
-    const y = m.f;
-
-    return { x, y };
-}
-
-export function translateToClient(
-    canvas: HTMLCanvasElement,
-    world: Vector,
-): Vector {
-    const offsets = canvas.getBoundingClientRect();
-    const ctx = require2DContext(canvas);
-
-    const relative = new DOMMatrixReadOnly().translate(world.x, world.y, 1);
-
-    const m = ctx.getTransform().multiply(relative);
-
-    const x = m.e + offsets.left;
-    const y = m.f + offsets.top;
-
-    return { x, y };
-}
-
-export function grid(canvas: HTMLCanvasElement, s = 25) {
-    const gw = Math.ceil(screenWidth / (3 * s)) * 3 * s;
-    const gh = Math.ceil(screenHeight / (3 * s)) * 3 * s;
-
-    const size = 0.7 * Math.max(gw, gh);
-    const count = 1;
-
-    const x0 = Math.floor(-count * s - size / 2);
-    let x1 = Math.ceil(count * s + size);
-    const y0 = Math.floor(-count * s - size / 2);
-    let y1 = Math.ceil(count * s + size);
-
-    x1 = x0 + Math.ceil((x1 - x0) / (3 * s)) * 3 * s;
-    y1 = x0 + Math.ceil((y1 - y0) / (3 * s)) * 3 * s;
-
-    const ctx = require2DContext(canvas);
-
-    ctx.save();
-
-    ctx.strokeStyle = "rgba(200, 200, 200)";
-    ctx.lineWidth = 0.4;
-
-    ctx.beginPath();
-
-    for (let x = x0; x <= x1; x += s) {
-        ctx.moveTo(x, y0);
-        ctx.lineTo(x, y1);
-    }
-
-    for (let y = y0; y <= y1; y += s) {
-        ctx.moveTo(x0, y);
-        ctx.lineTo(x1, y);
-    }
-
-    ctx.stroke();
-
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-
-    for (let x = x0; x <= x1; x += 3 * s) {
-        ctx.moveTo(x, y0);
-        ctx.lineTo(x, y1);
-    }
-
-    for (let y = y0; y <= y1; y += 3 * s) {
-        ctx.moveTo(x0, y);
-        ctx.lineTo(x1, y);
-    }
-
-    ctx.stroke();
-
-    ctx.restore();
-}
 
 export class Circumference {
     center!: Vector;
