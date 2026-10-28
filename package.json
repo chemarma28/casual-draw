@@ -1,18 +1,22 @@
 {
   "name": "casual-draw",
   "version": "0.0.1",
-  "description": "Web-application to generate Causal Loop Diagram",
-  "main": "index.js",
-  "directories": {
-    "lib": "lib"
+  "description": "Web application to generate Causal Loop Diagrams",
+  "private": true,
+  "engines": {
+    "node": ">=18"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "serve": "http-server -a 127.0.0.1 -p 8081 -c-1 .",
+    "start": "npm run build && npm run serve",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "Pavel Chemarmazovich",
   "license": "ISC",
-  "dependencies": {
+  "devDependencies": {
     "http-server": "^14.1.1",
     "typescript": "^5.4.5"
   }

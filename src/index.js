@@ -75,6 +75,7 @@ function setCanvasDimension() {
 function eventWindowLoaded() {
     setCodeFlaskDimension();
     setCanvasDimension();
+    callToCompile();
 }
 
 function callToCompile() {

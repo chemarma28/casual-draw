@@ -1,10 +1,19 @@
 {
     "compilerOptions": {
-        "noEmitOnError": true,
+        "target": "ES2022",
+        "module": "ES2022",
+        "rootDir": "./src/ts",
         "outDir": "./lib",
-        "target": "ES2015"
+        "sourceMap": true,
+        "noEmitOnError": true,
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": true
     },
+    "include": [
+        "src/ts/**/*.ts"
+    ],
     "exclude": [
-        "lib/**/*"
+        "lib/**/*",
+        "node_modules"
     ]
 }

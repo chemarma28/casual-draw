@@ -1,33 +1,46 @@
-## Installation
+# Casual Draw
 
-You can run application locally via cloning current repo to your machine.
+A browser-based editor for **Causal Loop Diagrams (CLD)**. Describe a diagram in a small text language, compile it, and export the result as a PNG image.
 
-```
-git clone <repo-url>
-```
+## Requirements
 
-For example:
+- [Node.js](https://nodejs.org/) 18 or newer
+- npm (installed with Node.js)
 
-```
-git clone https://github.com/Novorock/casual-draw
-```
+## Quick start
 
-[Node.js](https://nodejs.org/) is required to be installed. The project should not be version sensetive, but better to use v18.15.0 and later. Run command line from project root directory and execute the following command:
-
-```
+```sh
+git clone https://github.com/chemarma28/casual-draw.git
+cd casual-draw
 npm install
+npm start
 ```
 
-TypeScript transpiler and local http-server will be retrieved. Then you need to transpile TypeScript libraries to JavaScript by executing the following:
+Then open [http://localhost:8081/](http://localhost:8081/).
 
-```
-./node_modules/typescript/bin/tsc
+## CLD language
+
+Each statement ends with a semicolon (`;`). Variables are defined with an alias and can be referenced by name afterwards:
+
+```text
+@A1(1) > @A5(5) > @A2(2) +> A1;
+@A3(3) > @A4(4) > @A6(6) +> A3;
+A4 -> A2;
 ```
 
-Finally, start local server by:
+- `@Name(text)` defines a variable with the display text `text`.
+- `@Name[text]` defines a variable that is drawn with a frame.
+- `Name` (without `@`) references a variable that was defined earlier.
 
-```
-./node_modules/.bin/http-server -a localhost -p 8080
-```
+### Links
 
-and open browser on localhost: http://localhost:8080/
+| Syntax | Meaning | Appearance |
+| --- | --- | --- |
+| `A > B` | Causal link | Black |
+| `A +> B` | Positive link | Blue, marked `+` |
+| `A -> B` | Negative link | Red, marked `-` |
+| `A \|\|> B` | Delayed causal link | Black with a delay mark |
+| `A \|\|+> B` | Delayed positive link | Blue with a delay mark |
+| `A \|\|-> B` | Delayed negative link | Red with a delay mark |
+
+A variable must be defined before it is used. Defining the same name twice is an error.
