@@ -3,8 +3,8 @@ var translateX = 0;
 var translateY = 0;
 
 var translating = false;
-var pivotX: number = undefined;
-var pivotY: number = undefined;
+var pivotX: number | undefined = undefined;
+var pivotY: number | undefined = undefined;
 
 export function transform(ctx: CanvasRenderingContext2D) {
     ctx.scale(scale, scale);
@@ -12,7 +12,10 @@ export function transform(ctx: CanvasRenderingContext2D) {
 }
 
 export function zoom(e: WheelEvent) {
-    const canvas = e.currentTarget as HTMLCanvasElement;
+    const canvas = e.currentTarget as HTMLCanvasElement | null;
+
+    if (!canvas) return;
+
     const factor = Math.min(
         3,
         Math.max(0.45, scale - Math.sign(e.deltaY) * 0.1),
@@ -30,29 +33,39 @@ export function zoom(e: WheelEvent) {
 }
 
 export function dispatchTranslatingEvent(e: MouseEvent) {
+    const target = e.currentTarget as HTMLCanvasElement | null;
+
+    if (!target) return;
+
     translating = true;
     pivotX = e.clientX;
     pivotY = e.clientY;
 
-    e.currentTarget.addEventListener("mousemove", translate);
-    e.currentTarget.addEventListener("mouseup", disposeTranslating);
+    target.addEventListener("mousemove", translate);
+    target.addEventListener("mouseup", disposeTranslating);
 }
 
-function translate(e: MouseEvent) {
-    if (!translating) return;
+function translate(e: Event) {
+    if (!translating || pivotX === undefined || pivotY === undefined) return;
 
-    translateX -= (pivotX - e.clientX) / scale;
-    translateY -= (pivotY - e.clientY) / scale;
+    const event = e as MouseEvent;
 
-    pivotX = e.clientX;
-    pivotY = e.clientY;
+    translateX -= (pivotX - event.clientX) / scale;
+    translateY -= (pivotY - event.clientY) / scale;
+
+    pivotX = event.clientX;
+    pivotY = event.clientY;
 }
 
-export function disposeTranslating(e: MouseEvent) {
+export function disposeTranslating(e: Event) {
+    const target = e.currentTarget as HTMLCanvasElement | null;
+
     translating = false;
 
-    e.currentTarget.removeEventListener("mousemove", translate);
-    e.currentTarget.removeEventListener("mouseup", disposeTranslating);
+    if (!target) return;
+
+    target.removeEventListener("mousemove", translate);
+    target.removeEventListener("mouseup", disposeTranslating);
 }
 
 export function isTranslating(): boolean {

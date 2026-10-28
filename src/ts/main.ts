@@ -1,4 +1,5 @@
 import { demo1 } from "./demos/demo1";
+import { byId, require2DContext } from "./dom";
 import { Arc, drawRectlinearLayout, grid } from "./graphics";
 import { dispatchHintEvent, disposeHintCapture, hintLocator } from "./hints";
 import { dispatchLocatorEvent, Locator, locatorCapture } from "./locator";
@@ -10,9 +11,8 @@ import {
     zoom,
 } from "./transforms";
 
-const overlay = document.getElementById("overlay");
-const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-const ctx = canvas.getContext("2d");
+const canvas = byId<HTMLCanvasElement>("canvas");
+const ctx = require2DContext(canvas);
 
 var width = 320;
 var height = 270;

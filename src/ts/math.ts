@@ -82,6 +82,8 @@ export function arg(v: Vector): number {
     if (x <= 0 && y <= 0) return -Math.acos(x);
 
     if (x >= 0 && y <= 0) return Math.asin(y);
+
+    return Math.atan2(y, x);
 }
 
 export function normal(A: Vector, B: Vector): Vector {
@@ -229,7 +231,13 @@ export class IndexedVerticesGraph {
     }
 
     index(v: Vertex): number {
-        return this.vertices.get(v);
+        const index = this.vertices.get(v);
+
+        if (index === undefined) {
+            throw new Error(`Vertex '${v}' is not present in the graph.`);
+        }
+
+        return index;
     }
 
     size(): number {
@@ -248,8 +256,8 @@ export class IndexedVerticesGraph {
         });
 
         for (let edge of this.edges) {
-            const begin = this.vertices.get(edge.begin);
-            const end = this.vertices.get(edge.end);
+            const begin = this.index(edge.begin);
+            const end = this.index(edge.end);
 
             matrix[begin][end] = edge.weight;
         }

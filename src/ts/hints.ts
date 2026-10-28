@@ -1,12 +1,12 @@
+import { byId } from "./dom";
 import { translateToClient, translateToWorld } from "./graphics";
 import { getLocatorByPoint, Locator } from "./locator";
 import { circleBoundingRectangle, Rectangle } from "./math";
 
 export class Hint {
     element: HTMLDivElement;
-    container: HTMLElement;
     visible: boolean = false;
-    timeoutid: number = undefined;
+    timeoutid: number | undefined = undefined;
 
     constructor(container: HTMLElement, placeholder: string) {
         const element = document.createElement("div");
@@ -62,13 +62,11 @@ export class Hint {
     }
 }
 
-var canvas: HTMLCanvasElement = document.getElementById(
-    "canvas",
-) as HTMLCanvasElement;
-var container: HTMLElement = document.getElementById("overlay");
+var canvas = byId<HTMLCanvasElement>("canvas");
+var container = byId<HTMLElement>("overlay");
 
 var hints: Map<Locator, Hint> = new Map();
-var hintCapture: Hint = undefined;
+var hintCapture: Hint | undefined = undefined;
 
 export function hintLocator(
     locator: Locator,

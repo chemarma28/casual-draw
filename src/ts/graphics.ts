@@ -1,3 +1,4 @@
+import { require2DContext } from "./dom";
 import {
     circumcenter,
     clockwise,
@@ -14,7 +15,7 @@ export function translateToWorld(
     client: Vector,
 ): Vector {
     const offsets = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext("2d");
+    const ctx = require2DContext(canvas);
 
     const relative = new DOMMatrixReadOnly().translate(
         client.x - offsets.left,
@@ -34,7 +35,7 @@ export function translateToClient(
     world: Vector,
 ): Vector {
     const offsets = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext("2d");
+    const ctx = require2DContext(canvas);
 
     const relative = new DOMMatrixReadOnly().translate(world.x, world.y, 1);
 
@@ -61,7 +62,7 @@ export function grid(canvas: HTMLCanvasElement, s = 25) {
     x1 = x0 + Math.ceil((x1 - x0) / (3 * s)) * 3 * s;
     y1 = x0 + Math.ceil((y1 - y0) / (3 * s)) * 3 * s;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = require2DContext(canvas);
 
     ctx.save();
 
@@ -101,8 +102,8 @@ export function grid(canvas: HTMLCanvasElement, s = 25) {
 }
 
 export class Circumference {
-    center: Vector;
-    r: number;
+    center!: Vector;
+    r!: number;
 
     constructor(p1: Vector, p2: Vector, p3: Vector) {
         this.circumsribe(p1, p2, p3);
@@ -127,10 +128,10 @@ export class Arc {
     mid: Vector;
     end: Vector;
     counterclockwise: boolean = true;
-    center: Vector;
-    r: number;
-    phi1: number;
-    phi2: number;
+    center!: Vector;
+    r!: number;
+    phi1!: number;
+    phi2!: number;
 
     constructor(begin: Vector, mid: Vector, end: Vector) {
         this.begin = begin;

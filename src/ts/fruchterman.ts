@@ -3,8 +3,8 @@ import { distance, normal, dot } from "./math";
 class FRVertex {
     public x: number;
     public y: number;
-    public dispX: number;
-    public dispY: number;
+    public dispX: number = 0;
+    public dispY: number = 0;
 
     constructor(x: number, y: number) {
         this.x = x;

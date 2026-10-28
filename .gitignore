@@ -59,6 +59,7 @@ node_modules/
 # Ignore build directories.
 /build
 /dist
+/.parcel-cache
 
 # ignore composer vendor directory
 /vendor

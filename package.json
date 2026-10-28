@@ -1,19 +1,24 @@
 {
   "name": "casual-draw",
   "version": "0.0.1",
-  "description": "Language syntax for generating causal loop diagrams",
+  "description": "Editor and renderer for causal loop diagrams",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
+    "dev": "parcel index.html --port 1234 --host 127.0.0.1",
     "build": "parcel build index.html",
-    "dev": "parcel index.html --open"
+    "typecheck": "tsc --noEmit",
+    "clean": "node scripts/clean.mjs",
+    "preview": "npm run build && http-server dist -a 127.0.0.1 -p 4173 -c-1 -d false"
   },
   "author": "Pavel Chemarmazovich",
   "license": "ISC",
-  "dependencies": {
-    "http-server": "^14.1.1",
-    "typescript": "^5.4.5"
-  },
   "devDependencies": {
     "@parcel/transformer-sass": "^2.16.4",
-    "parcel": "^2.16.4"
+    "http-server": "^14.1.1",
+    "parcel": "^2.16.4",
+    "typescript": "^5.4.5"
   }
 }

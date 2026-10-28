@@ -2,13 +2,13 @@ import { translateToWorld } from "./graphics";
 import { distance2, Vector } from "./math";
 
 var locators: Array<Locator> = [];
-var capture: Locator = undefined;
+var capture: Locator | undefined = undefined;
 
 export class Locator {
     x: number;
     y: number;
-    _r: number;
-    _r2: number;
+    _r!: number;
+    _r2!: number;
     background = "rgba(0, 0, 0, 0.3)";
 
     constructor(x: number, y: number, size?: number) {
@@ -72,19 +72,23 @@ export class Locator {
     }
 }
 
-export function getLocatorByPoint(p: Vector): Locator {
+export function getLocatorByPoint(p: Vector): Locator | undefined {
     for (let locator of locators)
         if (locator.isPointInLocator(p)) return locator;
 
     return undefined;
 }
 
-export function locatorCapture(): Locator {
+export function locatorCapture(): Locator | undefined {
     return capture;
 }
 
 export function dispatchLocatorEvent(e: MouseEvent) {
-    const point = translateToWorld(e.currentTarget as HTMLCanvasElement, {
+    const target = e.currentTarget as HTMLCanvasElement | null;
+
+    if (!target) return;
+
+    const point = translateToWorld(target, {
         x: e.clientX,
         y: e.clientY,
     });
@@ -93,27 +97,32 @@ export function dispatchLocatorEvent(e: MouseEvent) {
 
     if (!locatorCapture()) locator?.enable();
 
-    e.currentTarget.addEventListener("mousemove", changeLocatorOrigin);
-    e.currentTarget.addEventListener("mouseup", dispose);
+    target.addEventListener("mousemove", changeLocatorOrigin);
+    target.addEventListener("mouseup", dispose);
 }
 
-function changeLocatorOrigin(e: MouseEvent) {
-    if (!capture) return;
+function changeLocatorOrigin(e: Event) {
+    const target = e.currentTarget as HTMLCanvasElement | null;
 
-    const point = translateToWorld(e.currentTarget as HTMLCanvasElement, {
-        x: e.clientX,
-        y: e.clientY,
+    if (!capture || !target) return;
+
+    const event = e as MouseEvent;
+    const point = translateToWorld(target, {
+        x: event.clientX,
+        y: event.clientY,
     });
 
     capture.x = point.x;
     capture.y = point.y;
 }
 
-function dispose(e: MouseEvent) {
-    if (!capture) return;
+function dispose(e: Event) {
+    const target = e.currentTarget as HTMLCanvasElement | null;
+
+    if (!capture || !target) return;
 
     capture.disable();
 
-    e.currentTarget.removeEventListener("mousemove", changeLocatorOrigin);
-    e.currentTarget.removeEventListener("mouseup", dispose);
+    target.removeEventListener("mousemove", changeLocatorOrigin);
+    target.removeEventListener("mouseup", dispose);
 }
