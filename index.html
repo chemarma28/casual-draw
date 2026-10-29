@@ -11,13 +11,25 @@
 
 <body>
     <header>
-        <span>Causality (PoC)</span>
+        <span class="title">Casual Draw</span>
+
+        <div id="toolbar" class="toolbar">
+            <button id="compile-button" type="button">Compile</button>
+            <button id="fit-button" type="button">Fit</button>
+            <button id="zoom-out-button" type="button" aria-label="Zoom out">−</button>
+            <button id="zoom-in-button" type="button" aria-label="Zoom in">+</button>
+            <button id="reset-button" type="button">Reset</button>
+            <button id="export-button" type="button">Export</button>
+        </div>
     </header>
 
     <div id="content">
         <div class="vertical-split-pane">
             <div id="lft-pane" class="left">
-                left
+                <div class="editor-panel">
+                    <div id="editor"></div>
+                </div>
+                <div id="status" class="status">Ready</div>
             </div>
 
             <div id="rh" class="resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize editor panel" tabindex="0">

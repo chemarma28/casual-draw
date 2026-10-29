@@ -1,4 +1,6 @@
 $border-color: #2f3a4c;
+$green: #138a07;
+$dark-green: #246b1e;
 
 $tooltip-bg: #f2e8cf;
 $tooltip-color: #2f3a4c;
@@ -18,18 +20,64 @@ html {
 header {
     display: flex;
     align-items: center;
-    height: 32px;
+    height: 36px;
     padding-left: 8px;
 
     color: white;
     font-size: 18px;
     font-weight: bold;
     background-color: $border-color;
+
+    .title {
+        flex-shrink: 0;
+    }
+}
+
+.toolbar {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    height: 100%;
+    margin-left: auto;
+    padding-right: 6px;
+
+    button {
+        height: 30px;
+        padding: 0 16px;
+        border: none;
+        border-radius: 10px;
+        background-color: $green;
+        color: #ffffff;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+
+        &:hover {
+            background-color: $dark-green;
+        }
+
+        &:active {
+            box-shadow: inset 0 0 0 1px #ffffff;
+        }
+
+        &:focus-visible {
+            outline: 2px solid #ffffff;
+            outline-offset: 2px;
+        }
+    }
+
+    #zoom-in-button,
+    #zoom-out-button {
+        width: 30px;
+        padding: 0;
+        font-size: 18px;
+        line-height: 1;
+    }
 }
 
 #content {
     box-sizing: border-box;
-    height: calc(100% - 32px);
+    height: calc(100% - 36px);
 }
 
 #overlay {
@@ -44,10 +92,12 @@ header {
     height: 100%;
 
     .left {
+        display: flex;
+        flex-direction: column;
         flex-shrink: 0;
         max-width: 50%;
         width: 30%;
-        background-color: lightblue;
+        background-color: #ffffff;
     }
 
     .right {
@@ -99,10 +149,68 @@ header {
     }
 }
 
+.editor-panel {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+}
+
+#editor {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.status {
+    height: 26px;
+    padding: 4px 8px;
+    border-top: 1px solid #e0e0e0;
+    background-color: #f7f7f7;
+    color: #666666;
+    font-size: 12px;
+    line-height: 18px;
+}
+
 canvas {
     display: block;
     width: 100%;
     height: 100%;
+}
+
+.codeflask {
+    font-size: 14px;
+}
+
+.codeflask .codeflask__flatten {
+    font-size: 14px !important;
+    line-height: 21px;
+}
+
+.codeflask__lines,
+.codeflask__lines__line {
+    font-size: 13px !important;
+    line-height: 21px;
+}
+
+.language-cldlang .token.name {
+    color: #1f4f9a;
+    font-weight: bold;
+}
+
+.language-cldlang .token.text {
+    color: #7a4b00;
+}
+
+.language-cldlang .token.positive {
+    color: #08abed;
+}
+
+.language-cldlang .token.negative {
+    color: #c73544;
+}
+
+.language-cldlang .token.default {
+    color: #444444;
 }
 
 .tooltip {

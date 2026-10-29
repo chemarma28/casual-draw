@@ -15,10 +15,18 @@
   },
   "author": "Pavel Chemarmazovich",
   "license": "ISC",
+  "targets": {
+    "default": {
+      "includeNodeModules": true
+    }
+  },
   "devDependencies": {
     "@parcel/transformer-sass": "^2.16.4",
     "http-server": "^14.1.1",
     "parcel": "^2.16.4",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "codeflask": "^1.4.1"
   }
 }

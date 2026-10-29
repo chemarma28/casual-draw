@@ -3,23 +3,48 @@ import { CanvasTransform } from "../canvas/canvas-transform";
 import { drawGrid } from "../canvas/grid";
 import { Bounds, Viewport } from "../canvas/viewport";
 import { demo1 } from "../demos/demo1";
+import { CodeFlaskEditor, EditorHost } from "../editor/codeflask-editor";
+import { exportCanvasAsPNG } from "../export";
 import { Arc, drawRectlinearLayout } from "../graphics";
 import { Locator } from "../locators/locator";
 import { LocatorController } from "../locators/locator-controller";
 import { SplitPane } from "../splitpane";
 import { createAppState, AppState } from "./state";
 
+const DEFAULT_SOURCE = [
+    "@A1(1) > @A5(5) > @A2(2) +> A1;",
+    "@A3(3) > @A4(4) > @A6(6) +> A3;",
+    "A4 -> A2;",
+].join("\n");
+
 export type ApplicationElements = {
     canvas: HTMLCanvasElement;
     overlay: HTMLElement;
     resizeHandle: HTMLElement;
     leftPane: HTMLElement;
+    editor: HTMLElement;
+    status: HTMLElement;
+    compileButton: HTMLButtonElement;
+    fitButton: HTMLButtonElement;
+    zoomInButton: HTMLButtonElement;
+    zoomOutButton: HTMLButtonElement;
+    resetButton: HTMLButtonElement;
+    exportButton: HTMLButtonElement;
 };
 
 export class Application {
     readonly state: AppState = createAppState();
     readonly viewport = new Viewport();
 
+    private readonly canvas: HTMLCanvasElement;
+    private readonly editor: EditorHost;
+    private readonly status: HTMLElement;
+    private readonly compileButton: HTMLButtonElement;
+    private readonly fitButton: HTMLButtonElement;
+    private readonly zoomInButton: HTMLButtonElement;
+    private readonly zoomOutButton: HTMLButtonElement;
+    private readonly resetButton: HTMLButtonElement;
+    private readonly exportButton: HTMLButtonElement;
     private readonly locators: LocatorController;
     private readonly canvasView: CanvasView;
     private readonly transform: CanvasTransform;
@@ -32,6 +57,18 @@ export class Application {
     private started = false;
 
     constructor(elements: ApplicationElements) {
+        this.canvas = elements.canvas;
+        this.status = elements.status;
+        this.compileButton = elements.compileButton;
+        this.fitButton = elements.fitButton;
+        this.zoomInButton = elements.zoomInButton;
+        this.zoomOutButton = elements.zoomOutButton;
+        this.resetButton = elements.resetButton;
+        this.exportButton = elements.exportButton;
+
+        this.editor = new CodeFlaskEditor(elements.editor, DEFAULT_SOURCE);
+        this.editor.onChange(() => this.setStatus("Edited"));
+
         this.locators = new LocatorController(
             elements.canvas,
             this.viewport,
@@ -76,6 +113,12 @@ export class Application {
 
         this.started = true;
 
+        this.compileButton.addEventListener("click", this.compile);
+        this.fitButton.addEventListener("click", this.fit);
+        this.zoomInButton.addEventListener("click", this.zoomIn);
+        this.zoomOutButton.addEventListener("click", this.zoomOut);
+        this.resetButton.addEventListener("click", this.reset);
+        this.exportButton.addEventListener("click", this.exportImage);
         this.transform.attach();
         this.splitPane.attach();
 
@@ -86,6 +129,7 @@ export class Application {
             this.onVisibilityChange,
         );
 
+        this.setStatus("Ready");
         this.onLoad();
     }
 
@@ -97,12 +141,69 @@ export class Application {
             this.onVisibilityChange,
         );
 
+        this.compileButton.removeEventListener("click", this.compile);
+        this.fitButton.removeEventListener("click", this.fit);
+        this.zoomInButton.removeEventListener("click", this.zoomIn);
+        this.zoomOutButton.removeEventListener("click", this.zoomOut);
+        this.resetButton.removeEventListener("click", this.reset);
+        this.exportButton.removeEventListener("click", this.exportImage);
         this.transform.destroy();
         this.splitPane.destroy();
         this.locators.destroy();
+        this.editor.destroy();
         this.canvasView.destroy();
 
         this.started = false;
+    }
+
+    private compile = () => {
+        this.canvasView.draw();
+        this.setStatus("Ready");
+    };
+
+    private fit = () => {
+        this.fitToView();
+        this.setStatus("Fit to view");
+    };
+
+    private zoomIn = () => {
+        this.zoom(1.2);
+    };
+
+    private zoomOut = () => {
+        this.zoom(1 / 1.2);
+    };
+
+    private reset = () => {
+        this.resetView();
+        this.setStatus("View reset");
+    };
+
+    private exportImage = () => {
+        this.exportPng();
+        this.setStatus("PNG exported");
+    };
+
+    private zoom(factor: number) {
+        const size = this.canvasView.size;
+
+        this.viewport.zoomAt(
+            { x: size.width / 2, y: size.height / 2 },
+            factor,
+        );
+        this.canvasView.invalidate();
+        this.setStatus(`Zoom ${Math.round(this.viewport.scale * 100)}%`);
+    }
+
+    private exportPng() {
+        exportCanvasAsPNG(
+            this.canvas,
+            `causal-loop-${Date.now()}.png`,
+        );
+    }
+
+    private setStatus(message: string) {
+        this.status.textContent = message;
     }
 
     private render(
@@ -167,15 +268,24 @@ export class Application {
         };
     }
 
-    private fitScene() {
+    private fitToView() {
         const size = this.canvasView.size;
 
-        if (this.state.fitted || size.width < 10 || size.height < 10) {
-            return;
-        }
+        if (size.width < 10 || size.height < 10) return;
 
         this.viewport.fit(this.getSceneBounds(), 48, size);
         this.state.fitted = true;
         this.canvasView.draw();
+    }
+
+    private fitScene() {
+        if (this.state.fitted) return;
+
+        this.fitToView();
+    }
+
+    private resetView() {
+        this.state.fitted = false;
+        this.fitToView();
     }
 }
