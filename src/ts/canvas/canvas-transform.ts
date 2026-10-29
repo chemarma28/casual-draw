@@ -1,5 +1,6 @@
 import { AppState } from "../app/state";
 import { LocatorController } from "../locators/locator-controller";
+import { Vector } from "../math";
 import { Viewport } from "./viewport";
 
 export class CanvasTransform {
@@ -46,7 +47,7 @@ export class CanvasTransform {
         this.locators.endDrag();
         this.locators.clearHover();
 
-        if (this.state.drag.kind === "pan") {
+        if (this.state.drag.kind !== "idle") {
             this.state.drag = { kind: "idle" };
         }
     }
@@ -56,7 +57,7 @@ export class CanvasTransform {
 
         e.preventDefault();
 
-        if (this.locators.tryBeginDrag(e)) return;
+        if (this.locators.tryBeginDrag(this.toWorld(e))) return;
 
         this.state.drag = {
             kind: "pan",
@@ -69,7 +70,7 @@ export class CanvasTransform {
     private onMouseMove = (e: MouseEvent) => {
         if (this.state.drag.kind !== "idle") return;
 
-        this.locators.hover(e);
+        this.locators.hover(this.toWorld(e));
     };
 
     private onWindowMouseMove = (e: MouseEvent) => {
@@ -83,7 +84,7 @@ export class CanvasTransform {
 
             this.invalidate();
         } else if (drag.kind === "locator") {
-            this.locators.drag(e);
+            this.locators.drag(this.toWorld(e));
         }
     };
 
@@ -106,7 +107,7 @@ export class CanvasTransform {
         this.locators.endDrag();
         this.locators.clearHover();
 
-        if (this.state.drag.kind === "pan") {
+        if (this.state.drag.kind !== "idle") {
             this.state.drag = { kind: "idle" };
         }
     };
@@ -124,4 +125,13 @@ export class CanvasTransform {
         this.viewport.zoomAt(point, factor);
         this.invalidate();
     };
+
+    private toWorld(e: MouseEvent): Vector {
+        const rect = this.canvas.getBoundingClientRect();
+
+        return this.viewport.screenToWorld({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+        });
+    }
 }

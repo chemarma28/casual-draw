@@ -1,20 +1,31 @@
 import { CanvasView } from "../canvas/canvas-view";
 import { CanvasTransform } from "../canvas/canvas-transform";
 import { drawGrid } from "../canvas/grid";
-import { Bounds, Viewport } from "../canvas/viewport";
-import { demo1 } from "../demos/demo1";
+import { Viewport } from "../canvas/viewport";
+import { DemoDiagram } from "../demo/demo-diagram";
 import { CodeFlaskEditor, EditorHost } from "../editor/codeflask-editor";
 import { exportCanvasAsPNG } from "../export";
-import { Arc, drawRectlinearLayout } from "../graphics";
-import { Locator } from "../locators/locator";
+import { LegacyDiagram } from "../legacy/diagram";
 import { LocatorController } from "../locators/locator-controller";
 import { SplitPane } from "../splitpane";
 import { createAppState, AppState } from "./state";
 
+type EditorMode = "live" | "demo";
+
+type SavedViewport = {
+    scale: number;
+    tx: number;
+    ty: number;
+};
+
 const DEFAULT_SOURCE = [
-    "@A1(1) > @A5(5) > @A2(2) +> A1;",
-    "@A3(3) > @A4(4) > @A6(6) +> A3;",
-    "A4 -> A2;",
+    "@Population[Population] +> @Births(Births) ||+> Population;",
+    "Population +> @Deaths(Deaths) -> Population;",
+    "Population -> @Food(Food supply);",
+    "Food +> @BirthRate(Birth rate) +> Births;",
+    "Food -> @DeathRate(Death rate) +> Deaths;",
+    "@Disease(Disease) +> DeathRate;",
+    "Population +> Disease;",
 ].join("\n");
 
 export type ApplicationElements = {
@@ -22,6 +33,7 @@ export type ApplicationElements = {
     overlay: HTMLElement;
     resizeHandle: HTMLElement;
     leftPane: HTMLElement;
+    editorPanel: HTMLElement;
     editor: HTMLElement;
     status: HTMLElement;
     compileButton: HTMLButtonElement;
@@ -30,6 +42,8 @@ export type ApplicationElements = {
     zoomOutButton: HTMLButtonElement;
     resetButton: HTMLButtonElement;
     exportButton: HTMLButtonElement;
+    modeLiveButton: HTMLButtonElement;
+    modeDemoButton: HTMLButtonElement;
 };
 
 export class Application {
@@ -37,6 +51,7 @@ export class Application {
     readonly viewport = new Viewport();
 
     private readonly canvas: HTMLCanvasElement;
+    private readonly editorPanel: HTMLElement;
     private readonly editor: EditorHost;
     private readonly status: HTMLElement;
     private readonly compileButton: HTMLButtonElement;
@@ -45,19 +60,24 @@ export class Application {
     private readonly zoomOutButton: HTMLButtonElement;
     private readonly resetButton: HTMLButtonElement;
     private readonly exportButton: HTMLButtonElement;
+    private readonly modeLiveButton: HTMLButtonElement;
+    private readonly modeDemoButton: HTMLButtonElement;
+    private readonly diagram = new LegacyDiagram();
+    private readonly demo: DemoDiagram;
     private readonly locators: LocatorController;
     private readonly canvasView: CanvasView;
     private readonly transform: CanvasTransform;
     private readonly splitPane: SplitPane;
-    private readonly p1: Locator;
-    private readonly p2: Locator;
-    private readonly p3: Locator;
-    private readonly arc: Arc;
 
     private started = false;
+    private initialCompileDone = false;
+    private resizeTimer: number | undefined = undefined;
+    private mode: EditorMode = "live";
+    private liveViewport: SavedViewport = { scale: 1, tx: 0, ty: 0 };
 
     constructor(elements: ApplicationElements) {
         this.canvas = elements.canvas;
+        this.editorPanel = elements.editorPanel;
         this.status = elements.status;
         this.compileButton = elements.compileButton;
         this.fitButton = elements.fitButton;
@@ -65,26 +85,21 @@ export class Application {
         this.zoomOutButton = elements.zoomOutButton;
         this.resetButton = elements.resetButton;
         this.exportButton = elements.exportButton;
+        this.modeLiveButton = elements.modeLiveButton;
+        this.modeDemoButton = elements.modeDemoButton;
 
         this.editor = new CodeFlaskEditor(elements.editor, DEFAULT_SOURCE);
-        this.editor.onChange(() => this.setStatus("Edited"));
+        this.editor.onChange(() => {
+            if (this.mode === "live") {
+                this.setStatus("Edited");
+            }
+        });
 
         this.locators = new LocatorController(
-            elements.canvas,
             this.viewport,
             this.state,
             elements.overlay,
             () => this.canvasView.invalidate(),
-        );
-
-        this.p1 = this.locators.add(new Locator(200, 200), "p1");
-        this.p2 = this.locators.add(new Locator(500, 235), "p2");
-        this.p3 = this.locators.add(new Locator(600, 450), "p3");
-
-        this.arc = new Arc(
-            this.p1.origin(),
-            this.p2.origin(),
-            this.p3.origin(),
         );
 
         this.canvasView = new CanvasView(
@@ -92,6 +107,8 @@ export class Application {
             this.viewport,
             (ctx, view, size) => this.render(ctx, view, size),
         );
+
+        this.demo = new DemoDiagram();
 
         this.transform = new CanvasTransform(
             elements.canvas,
@@ -104,7 +121,10 @@ export class Application {
         this.splitPane = new SplitPane(
             elements.resizeHandle,
             elements.leftPane,
-            () => this.canvasView.resize(),
+            () => {
+                this.canvasView.resize();
+                this.scheduleRecompile();
+            },
         );
     }
 
@@ -119,6 +139,8 @@ export class Application {
         this.zoomOutButton.addEventListener("click", this.zoomOut);
         this.resetButton.addEventListener("click", this.reset);
         this.exportButton.addEventListener("click", this.exportImage);
+        this.modeLiveButton.addEventListener("click", this.setLiveMode);
+        this.modeDemoButton.addEventListener("click", this.setDemoMode);
         this.transform.attach();
         this.splitPane.attach();
 
@@ -134,6 +156,8 @@ export class Application {
     }
 
     destroy() {
+        clearTimeout(this.resizeTimer);
+
         window.removeEventListener("load", this.onLoad);
         window.removeEventListener("resize", this.onResize);
         document.removeEventListener(
@@ -147,6 +171,8 @@ export class Application {
         this.zoomOutButton.removeEventListener("click", this.zoomOut);
         this.resetButton.removeEventListener("click", this.reset);
         this.exportButton.removeEventListener("click", this.exportImage);
+        this.modeLiveButton.removeEventListener("click", this.setLiveMode);
+        this.modeDemoButton.removeEventListener("click", this.setDemoMode);
         this.transform.destroy();
         this.splitPane.destroy();
         this.locators.destroy();
@@ -157,8 +183,7 @@ export class Application {
     }
 
     private compile = () => {
-        this.canvasView.draw();
-        this.setStatus("Ready");
+        this.runCompile();
     };
 
     private fit = () => {
@@ -175,7 +200,14 @@ export class Application {
     };
 
     private reset = () => {
-        this.resetView();
+        if (this.mode === "demo") {
+            this.demo.reset();
+            this.fitToView();
+            this.setStatus("Demo reset");
+            return;
+        }
+
+        this.fitToView();
         this.setStatus("View reset");
     };
 
@@ -183,6 +215,94 @@ export class Application {
         this.exportPng();
         this.setStatus("PNG exported");
     };
+
+    private setLiveMode = () => {
+        this.setMode("live");
+    };
+
+    private setDemoMode = () => {
+        this.setMode("demo");
+    };
+
+    private setMode(mode: EditorMode) {
+        if (this.mode === mode) return;
+
+        if (mode === "demo") {
+            this.liveViewport = {
+                scale: this.viewport.scale,
+                tx: this.viewport.tx,
+                ty: this.viewport.ty,
+            };
+            this.mode = "demo";
+            this.demo.attach(this.locators);
+            this.editor.setReadonly(true);
+            this.editorPanel.classList.add("is-demo");
+            this.compileButton.disabled = true;
+            this.updateModeButtons();
+            this.fitToView();
+            this.setStatus("Demo: drag nodes");
+            return;
+        }
+
+        this.mode = "live";
+        this.demo.detach(this.locators);
+        this.editor.setReadonly(false);
+        this.editorPanel.classList.remove("is-demo");
+        this.compileButton.disabled = false;
+        this.updateModeButtons();
+
+        this.viewport.scale = this.liveViewport.scale;
+        this.viewport.tx = this.liveViewport.tx;
+        this.viewport.ty = this.liveViewport.ty;
+        this.canvasView.draw();
+        this.setStatus("Ready");
+    }
+
+    private updateModeButtons() {
+        const isLive = this.mode === "live";
+
+        this.modeLiveButton.setAttribute("aria-pressed", `${isLive}`);
+        this.modeDemoButton.setAttribute("aria-pressed", `${!isLive}`);
+    }
+
+    private runCompile(fitAfterCompile = false) {
+        if (this.mode !== "live") return;
+
+        clearTimeout(this.resizeTimer);
+
+        const size = this.canvasView.size;
+        const result = this.diagram.compile(
+            this.editor.getValue(),
+            size.width,
+            size.height,
+        );
+
+        if (!result.ok) {
+            this.setStatus(result.error.message);
+            this.canvasView.draw();
+            return;
+        }
+
+        this.initialCompileDone = true;
+
+        if (fitAfterCompile) {
+            this.fitToView();
+        } else {
+            this.canvasView.draw();
+        }
+
+        this.setStatus("Ready");
+    }
+
+    private scheduleRecompile() {
+        if (this.mode !== "live" || !this.diagram.isReady) return;
+
+        clearTimeout(this.resizeTimer);
+
+        this.resizeTimer = window.setTimeout(() => {
+            this.runCompile();
+        }, 150);
+    }
 
     private zoom(factor: number) {
         const size = this.canvasView.size;
@@ -213,79 +333,46 @@ export class Application {
     ) {
         drawGrid(ctx, view, size);
 
-        ctx.save();
-        view.apply(ctx);
-
-        this.arc.arcscribe(
-            this.p1.origin(),
-            this.p2.origin(),
-            this.p3.origin(),
-        );
-        this.arc.draw(ctx);
-
-        this.locators.draw(ctx);
-
-        drawRectlinearLayout(ctx, demo1);
-
-        ctx.restore();
+        if (this.mode === "demo") {
+            this.demo.draw(ctx, view);
+        } else {
+            this.diagram.draw(ctx, view);
+        }
     }
 
     private onLoad = () => {
         this.canvasView.resize();
-        this.fitScene();
+
+        if (!this.initialCompileDone) {
+            this.initialCompileDone = true;
+            this.runCompile(true);
+        }
     };
 
     private onResize = () => {
-        if (!this.state.fitted) {
-            this.fitScene();
-        }
+        this.canvasView.resize();
+        this.scheduleRecompile();
     };
 
     private onVisibilityChange = () => {
-        if (!document.hidden && !this.state.fitted) {
+        if (!document.hidden) {
             this.canvasView.resize();
-            this.fitScene();
+            this.scheduleRecompile();
         }
     };
-
-    private getSceneBounds(): Bounds {
-        const locators = this.locators.all();
-        const xs = [
-            demo1.xs,
-            ...locators.map((locator) => locator.x),
-        ].flat();
-        const ys = [
-            demo1.ys,
-            ...locators.map((locator) => locator.y),
-        ].flat();
-        const padding = 20;
-
-        return {
-            minX: Math.min(...xs) - padding,
-            minY: Math.min(...ys) - padding,
-            maxX: Math.max(...xs) + padding,
-            maxY: Math.max(...ys) + padding,
-        };
-    }
 
     private fitToView() {
         const size = this.canvasView.size;
 
-        if (size.width < 10 || size.height < 10) return;
+        if (this.mode === "demo") {
+            this.viewport.fit(this.demo.bounds, 0, size);
+        } else if (this.diagram.isReady) {
+            this.viewport.fit(this.diagram.bounds, 0, size);
+        } else {
+            this.viewport.reset();
+        }
 
-        this.viewport.fit(this.getSceneBounds(), 48, size);
         this.state.fitted = true;
         this.canvasView.draw();
-    }
-
-    private fitScene() {
-        if (this.state.fitted) return;
-
-        this.fitToView();
-    }
-
-    private resetView() {
-        this.state.fitted = false;
-        this.fitToView();
     }
 }

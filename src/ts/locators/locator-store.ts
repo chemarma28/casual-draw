@@ -10,6 +10,14 @@ export class LocatorStore {
         return locator;
     }
 
+    remove(locator: Locator) {
+        const index = this.locators.indexOf(locator);
+
+        if (index >= 0) {
+            this.locators.splice(index, 1);
+        }
+    }
+
     all(): readonly Locator[] {
         return this.locators;
     }

@@ -69,6 +69,20 @@ export class LocatorHints {
         this.hints.set(locator, new Hint(this.container, placeholder));
     }
 
+    remove(locator: Locator) {
+        const hint = this.hints.get(locator);
+
+        if (!hint) return;
+
+        if (this.active === hint) {
+            this.active = undefined;
+        }
+
+        hint.hide();
+        hint.element.remove();
+        this.hints.delete(locator);
+    }
+
     show(locator: Locator, viewport: Viewport) {
         const hint = this.hints.get(locator);
 

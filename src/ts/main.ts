@@ -6,6 +6,7 @@ const app = new Application({
     overlay: byId<HTMLElement>("overlay"),
     resizeHandle: byId<HTMLElement>("rh"),
     leftPane: byId<HTMLElement>("lft-pane"),
+    editorPanel: byId<HTMLElement>("editor-panel"),
     editor: byId<HTMLElement>("editor"),
     status: byId<HTMLElement>("status"),
     compileButton: byId<HTMLButtonElement>("compile-button"),
@@ -14,6 +15,8 @@ const app = new Application({
     zoomOutButton: byId<HTMLButtonElement>("zoom-out-button"),
     resetButton: byId<HTMLButtonElement>("reset-button"),
     exportButton: byId<HTMLButtonElement>("export-button"),
+    modeLiveButton: byId<HTMLButtonElement>("mode-live-button"),
+    modeDemoButton: byId<HTMLButtonElement>("mode-demo-button"),
 });
 
 app.start();

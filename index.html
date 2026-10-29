@@ -19,14 +19,17 @@
             <button id="zoom-out-button" type="button" aria-label="Zoom out">−</button>
             <button id="zoom-in-button" type="button" aria-label="Zoom in">+</button>
             <button id="reset-button" type="button">Reset</button>
-            <button id="export-button" type="button">Export</button>
+            <div class="toolbar-tooltip">
+                <button id="export-button" type="button" aria-describedby="export-button-tooltip">Export</button>
+                <span id="export-button-tooltip" class="toolbar-tooltip-text" role="tooltip">Export as .PNG</span>
+            </div>
         </div>
     </header>
 
     <div id="content">
         <div class="vertical-split-pane">
             <div id="lft-pane" class="left">
-                <div class="editor-panel">
+                <div id="editor-panel" class="editor-panel">
                     <div id="editor"></div>
                 </div>
                 <div id="status" class="status">Ready</div>
@@ -42,6 +45,12 @@
                 <div class="canvas-area">
                     <canvas id="canvas"></canvas>
                     <div id="overlay"></div>
+                    <div class="canvas-mode-bar">
+                        <div class="mode-switch" role="group" aria-label="Editor mode">
+                            <button id="mode-live-button" type="button" aria-pressed="true">Live</button>
+                            <button id="mode-demo-button" type="button" aria-pressed="false">Demo</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -9,6 +9,7 @@ export type EditorDiagnostic = {
 export interface EditorHost {
     getValue(): string;
     setValue(code: string): void;
+    setReadonly(readonly: boolean): void;
     onChange(callback: (code: string) => void): void;
     setDiagnostics(diagnostics: EditorDiagnostic[]): void;
     destroy(): void;
@@ -26,8 +27,9 @@ export class CodeFlaskEditor implements EditorHost {
     private readonly flask: CodeFlask;
     private readonly listeners: Array<(code: string) => void> = [];
     private readonly element: HTMLElement;
+    private readonly textarea: HTMLTextAreaElement | null;
     private updateTimer: number | undefined = undefined;
-    private firstUpdate = true;
+    private userEditing = false;
 
     constructor(element: HTMLElement, initialCode: string) {
         this.element = element;
@@ -40,6 +42,10 @@ export class CodeFlaskEditor implements EditorHost {
         this.flask.addLanguage("cldlang", CLD_GRAMMAR);
         this.flask.onUpdate(this.handleUpdate);
         this.flask.updateCode(initialCode);
+
+        this.textarea = element.querySelector("textarea");
+        this.textarea?.addEventListener("input", this.handleUserInput);
+        this.textarea?.addEventListener("keydown", this.handleUserInput);
     }
 
     getValue(): string {
@@ -48,6 +54,14 @@ export class CodeFlaskEditor implements EditorHost {
 
     setValue(code: string) {
         this.flask.updateCode(code);
+    }
+
+    setReadonly(readonly: boolean) {
+        if (readonly) {
+            this.flask.enableReadonlyMode();
+        } else {
+            this.flask.disableReadonlyMode();
+        }
     }
 
     onChange(callback: (code: string) => void) {
@@ -61,14 +75,19 @@ export class CodeFlaskEditor implements EditorHost {
     destroy() {
         clearTimeout(this.updateTimer);
         this.listeners.length = 0;
+        this.textarea?.removeEventListener("input", this.handleUserInput);
+        this.textarea?.removeEventListener("keydown", this.handleUserInput);
         this.element.innerHTML = "";
     }
 
+    private handleUserInput = () => {
+        this.userEditing = true;
+    };
+
     private handleUpdate = (code: string) => {
-        if (this.firstUpdate) {
-            this.firstUpdate = false;
-            return;
-        }
+        if (!this.userEditing) return;
+
+        this.userEditing = false;
 
         clearTimeout(this.updateTimer);
 

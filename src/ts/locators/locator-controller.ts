@@ -1,5 +1,6 @@
 import { AppState } from "../app/state";
 import { Viewport } from "../canvas/viewport";
+import { Vector } from "../math";
 import { Locator } from "./locator";
 import { LocatorHints } from "./locator-hints";
 import { LocatorStore } from "./locator-store";
@@ -9,7 +10,6 @@ export class LocatorController {
     private readonly hints: LocatorHints;
 
     constructor(
-        private readonly canvas: HTMLCanvasElement,
         private readonly viewport: Viewport,
         private readonly state: AppState,
         container: HTMLElement,
@@ -18,21 +18,35 @@ export class LocatorController {
         this.hints = new LocatorHints(container);
     }
 
-    add(locator: Locator, hint: string): Locator {
+    add(locator: Locator, hint?: string): Locator {
         this.store.add(locator);
-        this.hints.add(locator, hint);
+
+        if (hint) {
+            this.hints.add(locator, hint);
+        }
 
         return locator;
+    }
+
+    remove(locator: Locator) {
+        if (this.state.drag.kind === "locator") {
+            if (this.state.drag.locator === locator) {
+                this.endDrag();
+            }
+        }
+
+        this.store.remove(locator);
+        this.hints.remove(locator);
     }
 
     all(): readonly Locator[] {
         return this.store.all();
     }
 
-    tryBeginDrag(e: MouseEvent): boolean {
+    tryBeginDrag(point: Vector): boolean {
         if (this.state.drag.kind !== "idle") return true;
 
-        const locator = this.store.hitTest(this.toWorld(e));
+        const locator = this.store.hitTest(point);
 
         if (!locator) return false;
 
@@ -42,12 +56,10 @@ export class LocatorController {
         return true;
     }
 
-    drag(e: MouseEvent) {
+    drag(point: Vector) {
         const drag = this.state.drag;
 
         if (drag.kind !== "locator") return;
-
-        const point = this.toWorld(e);
 
         drag.locator.x = point.x;
         drag.locator.y = point.y;
@@ -62,10 +74,10 @@ export class LocatorController {
         this.hints.clear();
     }
 
-    hover(e: MouseEvent) {
+    hover(point: Vector) {
         if (this.state.drag.kind !== "idle") return;
 
-        const locator = this.store.hitTest(this.toWorld(e));
+        const locator = this.store.hitTest(point);
 
         if (!locator) {
             this.hints.clear();
@@ -86,15 +98,7 @@ export class LocatorController {
     }
 
     destroy() {
+        this.endDrag();
         this.hints.destroy();
-    }
-
-    private toWorld(e: MouseEvent) {
-        const rect = this.canvas.getBoundingClientRect();
-
-        return this.viewport.screenToWorld({
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
-        });
     }
 }
