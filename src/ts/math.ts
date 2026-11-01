@@ -96,7 +96,7 @@ export function normal(A: Vector, B: Vector): Vector {
 }
 
 export function dot(v: Vector, u: Vector): number {
-    return v.x * u.x + v.y + u.y;
+    return v.x * u.x + v.y * u.y;
 }
 
 export function det(m: [[number]] | Matrix3 | Matrix2): number {
@@ -120,9 +120,9 @@ export function det(m: [[number]] | Matrix3 | Matrix2): number {
 export function linearSolve(A: Matrix2, b: [number, number]): number[] {
     return [
         -(A[1][1] * b[0] - A[0][1] * b[1]) /
-            (A[0][1] * A[1][0] - A[0][0] * A[1][1]),
+        (A[0][1] * A[1][0] - A[0][0] * A[1][1]),
         -(-A[1][0] * b[0] + A[0][0] * b[1]) /
-            (A[0][1] * A[1][0] - A[0][0] * A[1][1]),
+        (A[0][1] * A[1][0] - A[0][0] * A[1][1]),
     ];
 }
 
@@ -172,9 +172,104 @@ export function hasIntersection(b1: Rectangle, b2: Rectangle): boolean {
     const { x: x2, y: y2 } = x20;
 
     return (
-        Math.max(x1, x2) <= Math.min(x1 + w1, x2 + w2) ||
+        Math.max(x1, x2) <= Math.min(x1 + w1, x2 + w2) &&
         Math.max(y1, y2) <= Math.min(y1 + h1, y2 + h2)
     );
+}
+
+export function intersectArcAndSegment(
+    arc: Arc,
+    segment: [Vector, Vector],
+): Vector[] {
+    const center = circumcenter(arc.begin, arc.mid, arc.end);
+    const r = distance({
+        x: center.x - arc.begin.x,
+        y: center.y - arc.begin.y,
+    });
+
+    if (r === 0) return [];
+
+    const [p, q] = segment;
+    const dx = q.x - p.x;
+    const dy = q.y - p.y;
+    const fx = p.x - center.x;
+    const fy = p.y - center.y;
+
+    const a = dx * dx + dy * dy;
+
+    if (a === 0) return [];
+
+    const b = 2 * (fx * dx + fy * dy);
+    const c = fx * fx + fy * fy - r * r;
+    const discriminant = b * b - 4 * a * c;
+
+    if (discriminant < 0) return [];
+
+    const root = Math.sqrt(discriminant);
+    const candidates = [
+        (-b - root) / (2 * a),
+        (-b + root) / (2 * a),
+    ];
+
+    const turn = clockwise(arc.begin, arc.mid, arc.end);
+    const points: Vector[] = [];
+
+    for (const t of candidates) {
+        if (t < -1e-9 || t > 1 + 1e-9) continue;
+
+        const point = {
+            x: p.x + t * dx,
+            y: p.y + t * dy,
+        };
+
+        if (
+            clockwise(arc.begin, point, arc.end) === turn &&
+            !points.some(
+                (candidate) =>
+                    distance2({
+                        x: candidate.x - point.x,
+                        y: candidate.y - point.y,
+                    }) < 1e-12,
+            )
+        ) {
+            points.push(point);
+        }
+    }
+
+    return points;
+}
+
+export function intersectArcAndRectangle(
+    arc: Arc,
+    rect: Rectangle,
+): Vector[] {
+    const bounds = rectangleBounds(rect);
+    const lines: Array<[Vector, Vector]> = [
+        bounds.north,
+        bounds.west,
+        bounds.south,
+        bounds.east,
+    ];
+
+    const points: Vector[] = [];
+
+    for (const line of lines) {
+        for (const point of intersectArcAndSegment(arc, line)) {
+            if (
+                !points.some(
+                    (candidate) =>
+                        distance2({
+                            x: candidate.x - point.x,
+                            y: candidate.y - point.y,
+                        }) < 1e-12,
+                )
+            ) {
+                points.push(point);
+            }
+        }
+    }
+
+    return points;
 }
 
 export type Vertex = number | string;

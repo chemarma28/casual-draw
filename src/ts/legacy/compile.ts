@@ -1,11 +1,59 @@
 // @ts-nocheck
 import { Translator, LxLinkHead } from "./lexer";
-import { KKLayout } from "./layout/kamada";
-import { distance, hasIntersection } from "./math";
-import { FRLayout } from "./layout/fruchterman";
-import { Text, Arc, ArrowHead, calculatePositionsForLabel, Delay } from "./graphics";
+import { KKLayout } from "../kamada";
+import { FRLayout } from "../fruchterman";
+import {
+    intersectArcAndRectangle,
+    distance,
+    hasIntersection,
+} from "../math";
+import {
+    Text,
+    Arc,
+    ArrowHead,
+    calculatePositionsForLabel,
+    Delay,
+} from "../graphics";
 
 const VERTEX_FONT = "20px Sans-Serif";
+const VERTEX_BACKGROUND = "rgba(255, 105, 180, 0.4)";
+const VERTEX_BORDER = "#c71585";
+
+function arcParameter(arc, point) {
+    const phi = Math.atan2(
+        point.y - arc.center.y,
+        point.x - arc.center.x,
+    );
+
+    let delta = arc.counterclockwise
+        ? arc.phi1 - phi
+        : phi - arc.phi1;
+
+    while (delta < 0) delta += 2 * Math.PI;
+    while (delta >= 2 * Math.PI) delta -= 2 * Math.PI;
+
+    return delta;
+}
+
+function pickSourcePoint(arc, points) {
+    if (points.length === 0) return undefined;
+
+    return points.reduce((best, point) =>
+        arcParameter(arc, point) < arcParameter(arc, best)
+            ? point
+            : best,
+    );
+}
+
+function pickTargetPoint(arc, points) {
+    if (points.length === 0) return undefined;
+
+    return points.reduce((best, point) =>
+        arcParameter(arc, point) > arcParameter(arc, best)
+            ? point
+            : best,
+    );
+}
 
 export type CompileResult =
     | { ok: true }
@@ -47,7 +95,11 @@ export function compile(
         const [x, y] = [layout.getX(), layout.getY()];
 
         const colorResolver = new EdgeColorResolver(vertexPool, linkPool);
-        const vertices = new Set();
+        const delayResolver = new EdgeDelayResolver(vertexPool, linkPool);
+        const polarityResolver = new EdgePolarityResolver(
+            vertexPool,
+            linkPool,
+        );
 
         const ctx = canvas.getContext("2d");
 
@@ -62,54 +114,119 @@ export function compile(
         ctx.save();
         ctx.translate(offsetX, offsetY);
 
-        const delayResolver = new EdgeDelayResolver(vertexPool, linkPool);
+        const vertexIndices = new Set();
 
-        for (let edge of edges) {
+        for (const edge of edges) {
+            vertexIndices.add(edge[0]);
+            vertexIndices.add(edge[2]);
+        }
+
+        const causalVertices = new Map();
+        const vertToText = new Map();
+
+        for (const v of vertexIndices) {
+            const vertex = vertexPool.getVertexByIndex(v);
+            const causalVertex = new CausalVertex(
+                ctx,
+                vertex.text,
+                x[v],
+                y[v],
+            );
+
+            if (vertex.framed) causalVertex.setFramed();
+
+            causalVertices.set(v, causalVertex);
+            vertToText.set(v, causalVertex.getTextElement());
+        }
+
+        const trimmedArcs = new Map();
+
+        for (const edge of edges) {
+            const source = edge[0];
+            const middle = edge[1];
+            const target = edge[2];
+            const sourceText = vertToText.get(source);
+            const targetText = vertToText.get(target);
+
+            const fullArc = new Arc(
+                { x: x[source], y: y[source] },
+                { x: x[middle], y: y[middle] },
+                { x: x[target], y: y[target] },
+            );
+
+            let sourcePoint = { x: x[source], y: y[source] };
+            let targetPoint = { x: x[target], y: y[target] };
+            let drawArc = fullArc;
+
+            if (sourceText && targetText) {
+                const sourceRect = sourceText.getBoundingRect();
+                const targetRect = targetText.getBoundingRect();
+                const overlap =
+                    source !== target &&
+                    hasIntersection(sourceRect, targetRect);
+
+                if (!overlap) {
+                    const sourceHit = pickSourcePoint(
+                        fullArc,
+                        intersectArcAndRectangle(fullArc, sourceRect),
+                    );
+                    const targetHit = pickTargetPoint(
+                        fullArc,
+                        intersectArcAndRectangle(fullArc, targetRect),
+                    );
+
+                    if (sourceHit) sourcePoint = sourceHit;
+                    if (targetHit) targetPoint = targetHit;
+
+                    if (sourceHit || targetHit) {
+                        drawArc = new Arc(
+                            sourcePoint,
+                            fullArc.mid,
+                            targetPoint,
+                        );
+                    }
+                }
+            }
+
             const causalEdge = new CausalEdge(
                 ctx,
                 colorResolver.resolveColorFor(edge).hex,
-                edge.map((v) => [x[v], y[v]]),
+                drawArc,
             );
 
             causalEdge.draw();
 
-            if (delayResolver.resolveDelayFor(edge))
-                new Delay(ctx, causalEdge.getArc()).draw();
-
-            for (let index of edge) {
-                if (!layout.isDummy(index)) {
-                    vertices.add(index);
-                }
+            if (delayResolver.resolveDelayFor(edge)) {
+                new Delay(fullArc).draw(ctx);
             }
+
+            trimmedArcs.set(edge, {
+                arc: drawArc,
+                target: targetPoint,
+            });
         }
 
-        const vertToText = new Map();
+        for (const causalVertex of causalVertices.values()) {
+            causalVertex.draw();
+        }
+
         const labelResolver = new LabelResolver(ctx);
 
-        for (let v of vertices) {
-            const text = vertexPool.getVertexByIndex(v).text;
-            const causalVertex = new CausalVertex(ctx, text, x[v], y[v]);
-
-            if (vertexPool.getVertexByIndex(v).framed)
-                causalVertex.setFramed();
-
-            causalVertex.draw();
-            vertToText.set(v, causalVertex.getTextElement());
+        for (const causalVertex of causalVertices.values()) {
             labelResolver.registerElement(causalVertex.getTextElement());
         }
 
-        const polarityResolver = new EdgePolarityResolver(
-            vertexPool,
-            linkPool,
-        );
-
-        for (let edge of edges) {
+        for (const edge of edges) {
             const color = colorResolver.resolveColorFor(edge).hex;
+            const trimmed = trimmedArcs.get(edge);
+
+            if (!trimmed) continue;
+
             const causalArrowHead = new CausalArrowHead(
                 ctx,
                 color,
-                edge.map((v) => [x[v], y[v]]),
-                vertToText.get(edge[2]),
+                trimmed.arc,
+                trimmed.target,
             );
 
             causalArrowHead.draw();
@@ -124,7 +241,7 @@ export function compile(
                 color,
             );
 
-            if (label) label.draw();
+            if (label) label.draw(ctx);
         }
 
         ctx.restore();
@@ -154,7 +271,10 @@ class Layout {
         for (let i = 0; i < matrix.length; i++)
             for (let j = 0; j < matrix.length; j++)
                 if (matrix[i][j] != 0 && i != j) {
-                    sum += distance([kx[i] - kx[j], ky[i] - ky[j]]);
+                    sum += distance({
+                        x: kx[i] - kx[j],
+                        y: ky[i] - ky[j],
+                    });
                     count++;
                 }
 
@@ -185,10 +305,10 @@ class Layout {
 }
 
 class CausalEdge {
-    constructor(ctx, color, cascade) {
+    constructor(ctx, color, arc) {
         this.ctx = ctx;
         this.color = color;
-        this.arc = new Arc(ctx, cascade);
+        this.arc = arc;
     }
 
     getArc() {
@@ -198,15 +318,15 @@ class CausalEdge {
     draw() {
         this.ctx.strokeStyle = this.color;
         this.ctx.lineWidth = 2;
-        this.arc.draw();
+        this.arc.draw(this.ctx, 2);
     }
 }
 
 class CausalArrowHead {
-    constructor(ctx, color, cascade, stickTo) {
+    constructor(ctx, color, arc, joint) {
         this.ctx = ctx;
         this.color = color;
-        this.arrowHead = new ArrowHead(ctx, new Arc(ctx, cascade), stickTo, 15);
+        this.arrowHead = new ArrowHead(arc, joint, 15);
     }
 
     getArrowHead() {
@@ -215,7 +335,7 @@ class CausalArrowHead {
 
     draw() {
         this.ctx.fillStyle = this.ctx.strokeStyle = this.color;
-        this.arrowHead.draw();
+        this.arrowHead.draw(this.ctx);
     }
 }
 
@@ -244,17 +364,20 @@ class CausalVertex {
             this.ctx.lineWidth = 3;
             this.ctx.strokeStyle = "#000000";
         } else {
-            this.ctx.strokeStyle = "#ffffff";
+            this.ctx.strokeStyle = VERTEX_BORDER;
         }
 
-        this.ctx.fillStyle = "#ffffff";
+        this.ctx.fillStyle = VERTEX_BACKGROUND;
         this.ctx.beginPath();
-        this.ctx.rect(...this.textElement.getBoundingRect());
+
+        const rect = this.textElement.getBoundingRect();
+
+        this.ctx.rect(rect.x.x, rect.x.y, rect.width, rect.height);
         this.ctx.stroke();
         this.ctx.fill();
 
         this.ctx.fillStyle = "#000000";
-        this.textElement.draw();
+        this.textElement.draw(this.ctx);
     }
 }
 
@@ -275,7 +398,14 @@ class LabelResolver {
             const attempts = calculatePositionsForLabel(arrowHead);
 
             for (let i = 0; i < attempts.length; i++) {
-                const newLabel = new Text(this.ctx, symbol, ...attempts[i], 15);
+                const attempt = attempts[i];
+                const newLabel = new Text(
+                    this.ctx,
+                    symbol,
+                    attempt.x,
+                    attempt.y,
+                    15,
+                );
                 let intersectionFound = false;
 
                 for (let element of this.elements) {
@@ -294,7 +424,14 @@ class LabelResolver {
                 }
             }
 
-            const newLabel = new Text(this.ctx, symbol, ...attempts[0], 15);
+            const fallback = attempts[0];
+            const newLabel = new Text(
+                this.ctx,
+                symbol,
+                fallback.x,
+                fallback.y,
+                15,
+            );
             this.registerElement(newLabel);
 
             return newLabel;
