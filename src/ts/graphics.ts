@@ -3,7 +3,6 @@ import {
     clockwise,
     det,
     distance,
-    IndexedVerticesGraph,
     normal,
     Rectangle,
     Vector,
@@ -133,81 +132,22 @@ export class Arc {
         this.phi1 = phi1;
         this.phi2 = phi2;
     }
-}
 
-export type Layout = {
-    g: IndexedVerticesGraph;
-    xs: number[];
-    ys: number[];
-};
+    parameter(point: Vector) {
+        const phi = Math.atan2(
+            point.y - this.center.y,
+            point.x - this.center.x,
+        );
 
-export function circular(
-    g: IndexedVerticesGraph,
-    origin: Vector,
-    r: number,
-): Layout {
-    const xs = Array(g.size());
-    const ys = Array(g.size());
+        let delta = this.counterclockwise
+            ? this.phi1 - phi
+            : phi - this.phi1;
 
-    const count = g.size();
+        while (delta < 0) delta += 2 * Math.PI;
+        while (delta >= 2 * Math.PI) delta -= 2 * Math.PI;
 
-    const delta = (2 * Math.PI) / count;
-    let angle = 0;
-
-    for (let v = 0; v < count; ++v) {
-        xs[v] = origin.x + r * Math.cos(angle);
-        ys[v] = origin.y + r * Math.sin(angle);
-
-        angle += delta;
+        return delta;
     }
-
-    return { g, xs, ys };
-}
-
-export function drawRectlinearLayout(
-    ctx: CanvasRenderingContext2D,
-    layout: Layout,
-    r = 7,
-) {
-    const g = layout.g;
-    const edges = layout.g.edges;
-    const xs = layout.xs;
-    const ys = layout.ys;
-
-    ctx.save();
-
-    ctx.beginPath();
-    ctx.lineWidth = 1.5;
-
-    edges.forEach((e) => {
-        const u = g.index(e.begin);
-        const v = g.index(e.end);
-
-        ctx.moveTo(xs[u], ys[u]);
-        ctx.lineTo(xs[v], ys[v]);
-    });
-
-    ctx.stroke();
-
-    ctx.font = "bold 22px serif";
-    
-    for (let v = 0; v < g.size(); ++v) {
-        ctx.beginPath();
-        ctx.fillStyle = "lightblue";
-        ctx.arc(xs[v], ys[v], r, 0, 2 * Math.PI);
-
-        ctx.fill();
-        ctx.stroke();
-
-        const text = g.vertex(v).toString();
-        const measure = ctx.measureText(text);
-        const w = measure.width;
-
-        ctx.fillStyle = "grey";
-        ctx.fillText(text, xs[v] - w / 2, ys[v] - 2 * r);
-    }
-
-    ctx.restore();
 }
 
 export class Text {

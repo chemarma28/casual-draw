@@ -1,3 +1,4 @@
+import { assemble, AssembledDiagram } from "../assemble";
 import { CanvasView } from "../canvas/canvas-view";
 import { CanvasTransform } from "../canvas/canvas-transform";
 import { drawGrid } from "../canvas/grid";
@@ -5,7 +6,6 @@ import { Viewport } from "../canvas/viewport";
 import { DemoDiagram } from "../demo/demo-diagram";
 import { CodeFlaskEditor, EditorHost } from "../editor/codeflask-editor";
 import { exportCanvasAsPNG } from "../export";
-import { LegacyDiagram } from "../legacy/diagram";
 import { LocatorController } from "../locators/locator-controller";
 import { SplitPane } from "../splitpane";
 import { createAppState, AppState } from "./state";
@@ -62,7 +62,7 @@ export class Application {
     private readonly exportButton: HTMLButtonElement;
     private readonly modeLiveButton: HTMLButtonElement;
     private readonly modeDemoButton: HTMLButtonElement;
-    private readonly diagram = new LegacyDiagram();
+    private assembled: AssembledDiagram | null = null;
     private readonly demo: DemoDiagram;
     private readonly locators: LocatorController;
     private readonly canvasView: CanvasView;
@@ -71,7 +71,6 @@ export class Application {
 
     private started = false;
     private initialCompileDone = false;
-    private resizeTimer: number | undefined = undefined;
     private mode: EditorMode = "live";
     private liveViewport: SavedViewport = { scale: 1, tx: 0, ty: 0 };
 
@@ -123,7 +122,6 @@ export class Application {
             elements.leftPane,
             () => {
                 this.canvasView.resize();
-                this.scheduleRecompile();
             },
         );
     }
@@ -156,8 +154,6 @@ export class Application {
     }
 
     destroy() {
-        clearTimeout(this.resizeTimer);
-
         window.removeEventListener("load", this.onLoad);
         window.removeEventListener("resize", this.onResize);
         document.removeEventListener(
@@ -268,40 +264,26 @@ export class Application {
     private runCompile(fitAfterCompile = false) {
         if (this.mode !== "live") return;
 
-        clearTimeout(this.resizeTimer);
+        try {
+            this.assembled = assemble(this.editor.getValue());
+            this.initialCompileDone = true;
 
-        const size = this.canvasView.size;
-        const result = this.diagram.compile(
-            this.editor.getValue(),
-            size.width,
-            size.height,
-        );
+            if (fitAfterCompile) {
+                this.fitToView();
+            } else {
+                this.canvasView.draw();
+            }
 
-        if (!result.ok) {
-            this.setStatus(result.error.message);
-            this.canvasView.draw();
-            return;
-        }
-
-        this.initialCompileDone = true;
-
-        if (fitAfterCompile) {
-            this.fitToView();
-        } else {
+            this.setStatus("Ready");
+        } catch (error) {
+            this.assembled = null;
+            this.setStatus(
+                error instanceof Error
+                    ? error.message
+                    : String(error),
+            );
             this.canvasView.draw();
         }
-
-        this.setStatus("Ready");
-    }
-
-    private scheduleRecompile() {
-        if (this.mode !== "live" || !this.diagram.isReady) return;
-
-        clearTimeout(this.resizeTimer);
-
-        this.resizeTimer = window.setTimeout(() => {
-            this.runCompile();
-        }, 150);
     }
 
     private zoom(factor: number) {
@@ -336,7 +318,7 @@ export class Application {
         if (this.mode === "demo") {
             this.demo.draw(ctx, view);
         } else {
-            this.diagram.draw(ctx, view);
+            this.assembled?.draw(ctx, view);
         }
     }
 
@@ -351,13 +333,11 @@ export class Application {
 
     private onResize = () => {
         this.canvasView.resize();
-        this.scheduleRecompile();
     };
 
     private onVisibilityChange = () => {
         if (!document.hidden) {
             this.canvasView.resize();
-            this.scheduleRecompile();
         }
     };
 
@@ -366,8 +346,8 @@ export class Application {
 
         if (this.mode === "demo") {
             this.viewport.fit(this.demo.bounds, 0, size);
-        } else if (this.diagram.isReady) {
-            this.viewport.fit(this.diagram.bounds, 0, size);
+        } else if (this.assembled) {
+            this.viewport.fit(this.assembled.bounds, 0, size);
         } else {
             this.viewport.reset();
         }

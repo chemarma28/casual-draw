@@ -1,3 +1,5 @@
+import type { DiagramModel } from "./language/model";
+
 const INF: number = 1000;
 
 export type Vector = { x: number; y: number };
@@ -272,91 +274,23 @@ export function intersectArcAndRectangle(
     return points;
 }
 
-export type Vertex = number | string;
+export function adjacency(diagram: DiagramModel): number[][] {
+    const size = diagram.vertices.length;
 
-export type Edge = {
-    begin: Vertex;
-    end: Vertex;
-    weight: number;
-};
+    const matrix = [...Array(size)].map(() => {
+        const row = [...Array(size)];
 
-export class GraphDefinition {
-    vertices = new Set<Vertex>();
-    edges = new Set<Edge>();
+        for (let col = 0; col < size; ++col) row[col] = 0;
 
-    join(v: Vertex, u: Vertex, weight = 1) {
-        this.vertices.add(v);
-        this.vertices.add(u);
+        return row;
+    });
 
-        this.edges.add({ begin: v, end: u, weight });
+    for (let link of diagram.links) {
+        const from = diagram.indexOf(link.from);
+        const to = diagram.indexOf(link.to);
+
+        matrix[from][to] = 1;
     }
 
-    bijoin(v: Vertex, u: Vertex, weight = 1) {
-        this.join(u, v, weight);
-        this.join(v, u, weight);
-    }
-}
-
-export class IndexedVerticesGraph {
-    edges: Set<Edge>;
-    // purpose is to fast obtain index by vertex
-    private vertices: Map<Vertex, number>;
-    // purpose is to fast obtain vertex by index
-    verts: Vertex[];
-
-    constructor(source: GraphDefinition) {
-        const size = source.vertices.size;
-
-        this.vertices = new Map<Vertex, number>();
-        this.verts = new Array<Vertex>(size);
-
-        let index = 0;
-
-        for (let v of source.vertices) {
-            this.vertices.set(v, index);
-            this.verts[index] = v;
-            ++index;
-        }
-
-        this.edges = source.edges;
-    }
-
-    vertex(index: number) {
-        return this.verts[index];
-    }
-
-    index(v: Vertex): number {
-        const index = this.vertices.get(v);
-
-        if (index === undefined) {
-            throw new Error(`Vertex '${v}' is not present in the graph.`);
-        }
-
-        return index;
-    }
-
-    size(): number {
-        return this.verts.length;
-    }
-
-    adjacency(): number[][] {
-        const size = this.vertices.size;
-
-        const matrix = [...Array(size)].map(() => {
-            const row = [...Array(size)];
-
-            for (let col = 0; col < size; ++col) row[col] = 0;
-
-            return row;
-        });
-
-        for (let edge of this.edges) {
-            const begin = this.index(edge.begin);
-            const end = this.index(edge.end);
-
-            matrix[begin][end] = edge.weight;
-        }
-
-        return matrix;
-    }
+    return matrix;
 }

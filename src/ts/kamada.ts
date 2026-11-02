@@ -1,4 +1,4 @@
-import { floyd, linearSolve } from "./math";
+import { floyd, linearSolve, Vector } from "./math";
 
 export class KKLayout {
     private l: number[][];
@@ -41,7 +41,7 @@ export class KKLayout {
         }
     }
 
-    public run() {
+    public run(): Vector[] {
         const n = this.x.length;
         let maxDelta = 0;
         let m = 0;
@@ -64,14 +64,8 @@ export class KKLayout {
 
             this.optimize(m);
         } while (maxDelta > this.epsilon);
-    }
 
-    public getX() {
-        return this.x;
-    }
-
-    public getY() {
-        return this.y;
+        return this.x.map((x, index) => ({x, y: this.y[index]}));
     }
 
     private optimize(m: number) {
