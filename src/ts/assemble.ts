@@ -61,14 +61,15 @@ function layout(
     let sum = 0;
     let count = 0;
 
-    for (let u = 0; u < m.length; ++u) {
-        for (let v = u + 1; v < m.length; ++v) {
-            const uu = positions[u];
-            const vv = positions[v];
+    for (let link of diagram.links) {
+        if (link.from === link.to)
+            continue;
 
-            sum += distance({ x: uu.x - vv.x, y: uu.y - vv.y });
-            ++count;
-        }
+        const uu = positions[diagram.indexOf(link.from)];
+        const vv = positions[diagram.indexOf(link.to)];
+
+        sum += distance({ x: uu.x - vv.x, y: uu.y - vv.y });
+        ++count;
     }
 
     const stiffness = count === 0 ? 1 : sum / count / strength;
