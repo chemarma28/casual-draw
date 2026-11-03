@@ -4,7 +4,7 @@ import {
     FruchtermanReingoldMethod,
 } from "./fruchterman";
 import { Arc, ArrowHead, calculatePositionsForLabel, Text } from "./graphics";
-import { KKLayout } from "./kamada";
+import { KamadaKawaiMethod } from "./kamada";
 import { buildDiagram, DiagramModel } from "./language/model";
 import { parse } from "./language/parser";
 import { adjacency, distance, hasIntersection, intersectArcAndRectangle, Rectangle, Vector } from "./math";
@@ -50,12 +50,13 @@ function layout(
     length: number = 750,
     strength: number = 3.2,
 ): Layout {
-    const kk = new KKLayout(
+    const positions = KamadaKawaiMethod(
         adjacency(diagram),
-        length,
-        strength,
+        {
+            length,
+            strength,
+        },
     );
-    const positions = kk.run();
 
     const m = adjacency(diagram);
     let sum = 0;

@@ -1,216 +1,212 @@
 import { floyd, linearSolve, Vector } from "./math";
 
-export class KKLayout {
-    private l: number[][];
-    private k: number[][];
-    private x: number[];
-    private y: number[];
-    private epsilon: number = 0.1;
+export type KamadaKawaiParameters = {
+    length: number;
+    strength: number;
+    epsilon?: number;
+    maxIterations?: number;
+    maxOptimizeIterations?: number;
+};
 
-    constructor(adjacency: number[][], L0: number, K: number) {
-        const n = adjacency.length;
+const DEFAULT_EPSILON = 0.1;
+const DEFAULT_MAX_ITERATIONS = 500;
+const DEFAULT_MAX_OPTIMIZE_ITERATIONS = 100;
 
-        for (let i = 0; i < n; i++)
-            for (let j = 0; j < i; j++)
-                if (i !== j)
-                    adjacency[i][j] = adjacency[j][i] = Math.max(adjacency[i][j], adjacency[j][i]);
+export function KamadaKawaiMethod(
+    adjacency: number[][],
+    parameters: KamadaKawaiParameters,
+): Vector[] {
+    const n = adjacency.length;
 
-        let d = floyd(adjacency);
-        let max = d[0][0];
+    if (n === 0) return [];
 
-        for (let j = 0; j < n; j++)
-            for (let i = 0; i < j; i++)
-                max = Math.max(d[i][j], max);
+    const L0 = parameters.length;
+    const K = parameters.strength;
+    const epsilon = parameters.epsilon ?? DEFAULT_EPSILON;
+    const maxIterations =
+        parameters.maxIterations ?? DEFAULT_MAX_ITERATIONS;
+    const maxOptimizeIterations =
+        parameters.maxOptimizeIterations ??
+        DEFAULT_MAX_OPTIMIZE_ITERATIONS;
 
-        const L = L0 / max;
+    const matrix = adjacency.map((row) => [...row]);
 
-        this.l = [...Array(n)].map((_, row) => {
-            return d[row].map(el => L * el);
-        });
-
-        this.k = [...Array(n)].map((_, row) => {
-            return d[row].map(el => K / Math.pow(el, 2));
-        });
-
-        this.x = Array(n);
-        this.y = Array(n);
-
-        for (let i = 1; i <= n; i++) {
-            this.x[i - 1] = L0 * Math.cos(2 * Math.PI * i / n);
-            this.y[i - 1] = L0 * Math.sin(2 * Math.PI * i / n);
-        }
-    }
-
-    public run(): Vector[] {
-        const n = this.x.length;
-        let maxDelta = 0;
-        let m = 0;
-
-        do {
-            maxDelta = 0;
-            m = 0;
-
-            for (let i = 0; i < n; i++) {
-                let delta = Math.sqrt(
-                    Math.pow(this.partialX(i), 2)
-                    + Math.pow(this.partialY(i), 2)
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < i; j++) {
+            if (i !== j) {
+                matrix[i][j] = matrix[j][i] = Math.max(
+                    matrix[i][j],
+                    matrix[j][i],
                 );
-
-                if (delta > maxDelta) {
-                    maxDelta = delta;
-                    m = i;
-                }
             }
-
-            this.optimize(m);
-        } while (maxDelta > this.epsilon);
-
-        return this.x.map((x, index) => ({x, y: this.y[index]}));
+        }
     }
 
-    private optimize(m: number) {
-        let delta = 0;
+    const d = floyd(matrix);
+    let max = d[0][0];
 
-        do {
-            const [dx, dy] = linearSolve([
-                [this.partialX_2(m), this.partialXY(m)],
-                [this.partialXY(m), this.partialY_2(m)]
-            ], [
-                -this.partialX(m),
-                -this.partialY(m)
-            ]);
-
-            this.x[m] += dx;
-            this.y[m] += dy;
-
-            delta = Math.sqrt(
-                Math.pow(this.partialX(m), 2)
-                + Math.pow(this.partialY(m), 2)
-            );
-        } while (delta > this.epsilon);
+    for (let j = 0; j < n; j++) {
+        for (let i = 0; i < j; i++) {
+            max = Math.max(d[i][j], max);
+        }
     }
 
-    private partialX(m: number): number {
+    const L = L0 / max;
+    const idealLengths = [...Array(n)].map((_, row) => {
+        return d[row].map((el) => L * el);
+    });
+    const weights = [...Array(n)].map((_, row) => {
+        return d[row].map((el) => K / Math.pow(el, 2));
+    });
+
+    const x = Array(n);
+    const y = Array(n);
+
+    for (let i = 1; i <= n; i++) {
+        x[i - 1] = L0 * Math.cos((2 * Math.PI * i) / n);
+        y[i - 1] = L0 * Math.sin((2 * Math.PI * i) / n);
+    }
+
+    const partialX = (m: number): number => {
         let sum = 0;
-        const x = this.x;
-        const y = this.y;
-        const k = this.k;
-        const l = this.l;
 
-        for (let i = 0; i < this.k.length; i++) {
-            if (i === m)
-                continue;
+        for (let i = 0; i < weights.length; i++) {
+            if (i === m) continue;
 
-            sum += k[m][i] * (
+            sum += weights[m][i] * (
                 x[m] - x[i]
-                - l[m][i] * (x[m] - x[i])
+                - idealLengths[m][i] * (x[m] - x[i])
                 / Math.sqrt(
                     Math.pow(x[m] - x[i], 2)
-                    + Math.pow(y[m] - y[i], 2)
+                    + Math.pow(y[m] - y[i], 2),
                 )
             );
         }
 
         return sum;
-    }
+    };
 
-    private partialY(m: number): number {
+    const partialY = (m: number): number => {
         let sum = 0;
-        const x = this.x;
-        const y = this.y;
-        const k = this.k;
-        const l = this.l;
 
-        for (let i = 0; i < this.k.length; i++) {
-            if (i === m)
-                continue;
+        for (let i = 0; i < weights.length; i++) {
+            if (i === m) continue;
 
-            sum += k[m][i] * (
+            sum += weights[m][i] * (
                 y[m] - y[i]
-                - l[m][i] * (y[m] - y[i])
+                - idealLengths[m][i] * (y[m] - y[i])
                 / Math.sqrt(
                     Math.pow(x[m] - x[i], 2)
-                    + Math.pow(y[m] - y[i], 2)
+                    + Math.pow(y[m] - y[i], 2),
                 )
             );
         }
 
         return sum;
-    }
+    };
 
-    private partialX_2(m: number): number {
+    const partialX_2 = (m: number): number => {
         let sum = 0;
-        const x = this.x;
-        const y = this.y;
-        const k = this.k;
-        const l = this.l;
 
-        for (let i = 0; i < this.k.length; i++) {
-            if (i === m)
-                continue;
+        for (let i = 0; i < weights.length; i++) {
+            if (i === m) continue;
 
-            sum += k[m][i] * (
-                1 - l[m][i]
+            sum += weights[m][i] * (
+                1 - idealLengths[m][i]
                 * Math.pow(y[m] - y[i], 2)
                 / Math.pow(
                     Math.pow(x[m] - x[i], 2)
                     + Math.pow(y[m] - y[i], 2),
-                    3 / 2
+                    3 / 2,
                 )
             );
         }
 
         return sum;
-    }
+    };
 
-    private partialY_2(m: number): number {
+    const partialY_2 = (m: number): number => {
         let sum = 0;
-        const x = this.x;
-        const y = this.y;
-        const k = this.k;
-        const l = this.l;
 
-        for (let i = 0; i < this.k.length; i++) {
-            if (i === m)
-                continue;
+        for (let i = 0; i < weights.length; i++) {
+            if (i === m) continue;
 
-            sum += k[m][i] * (
-                1 - l[m][i]
+            sum += weights[m][i] * (
+                1 - idealLengths[m][i]
                 * Math.pow(x[m] - x[i], 2)
                 / Math.pow(
                     Math.pow(x[m] - x[i], 2)
                     + Math.pow(y[m] - y[i], 2),
-                    3 / 2
+                    3 / 2,
                 )
             );
         }
 
         return sum;
-    }
+    };
 
-    private partialXY(m: number): number {
+    const partialXY = (m: number): number => {
         let sum = 0;
-        const x = this.x;
-        const y = this.y;
-        const k = this.k;
-        const l = this.l;
 
-        for (let i = 0; i < this.k.length; i++) {
-            if (i === m)
-                continue;
+        for (let i = 0; i < weights.length; i++) {
+            if (i === m) continue;
 
-            sum += k[m][i] * (
-                l[m][i]
+            sum += weights[m][i] * (
+                idealLengths[m][i]
                 * (x[m] - x[i])
                 * (y[m] - y[i])
                 / Math.pow(
                     Math.pow(x[m] - x[i], 2)
                     + Math.pow(y[m] - y[i], 2),
-                    3 / 2
+                    3 / 2,
                 )
             );
         }
 
         return sum;
+    };
+
+    for (let iteration = 0; iteration < maxIterations; iteration++) {
+        let maxDelta = 0;
+        let maxIndex = 0;
+
+        for (let i = 0; i < n; i++) {
+            const delta = Math.sqrt(
+                Math.pow(partialX(i), 2)
+                + Math.pow(partialY(i), 2),
+            );
+
+            if (delta > maxDelta) {
+                maxDelta = delta;
+                maxIndex = i;
+            }
+        }
+
+        if (maxDelta <= epsilon) break;
+
+        for (let i = 0; i < maxOptimizeIterations; i++) {
+            const [dx, dy] = linearSolve([
+                [partialX_2(maxIndex), partialXY(maxIndex)],
+                [partialXY(maxIndex), partialY_2(maxIndex)],
+            ], [
+                -partialX(maxIndex),
+                -partialY(maxIndex),
+            ]);
+
+            x[maxIndex] += dx;
+            y[maxIndex] += dy;
+
+            const delta = Math.sqrt(
+                Math.pow(partialX(maxIndex), 2)
+                + Math.pow(partialY(maxIndex), 2),
+            );
+
+            if (delta <= epsilon) break;
+        }
     }
+
+    return x.map((value, index) => ({
+        x: value,
+        y: y[index],
+    }));
 }
