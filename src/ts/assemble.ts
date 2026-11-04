@@ -3,7 +3,7 @@ import {
     FruchtermanReingoldLink,
     FruchtermanReingoldMethod,
 } from "./fruchterman";
-import { Arc, ArrowHead, calculatePositionsForLabel, Text } from "./graphics";
+import { Arc, ArrowHead, calculatePositionsForLabel, Delay, Text } from "./graphics";
 import { KamadaKawaiMethod } from "./kamada";
 import { buildDiagram, DiagramModel } from "./language/model";
 import { parse } from "./language/parser";
@@ -243,7 +243,15 @@ export function assemble(source: string): AssembledDiagram {
         }
     }
 
-    console.debug(polarities.length);
+    const delays: { link: number, g: Delay }[] = [];
+
+    for (let i = 0; i < diagram.links.length; ++i) {
+        const link = diagram.links[i];
+        const arc = arcs[i];
+
+        if (link.delayed)
+            delays.push({ link: i, g: new Delay(arc) });
+    }
 
     return {
         diagram,
@@ -272,11 +280,15 @@ export function assemble(source: string): AssembledDiagram {
                 arrow.draw(ctx);
             }
 
-            for (let i = 0; i < arrows.length; ++i) {
-                const polarity = polarities[i];
-
-                ctx.strokeStyle = ctx.fillStyle = color(i);
+            for (let polarity of polarities) {
+                ctx.strokeStyle = ctx.fillStyle = color(polarity.link);
                 polarity.text.draw(ctx);
+            }
+
+            for (let delay of delays) {
+                ctx.strokeStyle = ctx.fillStyle = color(delay.link);
+                ctx.lineWidth = 1.5;
+                delay.g.draw(ctx);
             }
 
             ctx.restore();
