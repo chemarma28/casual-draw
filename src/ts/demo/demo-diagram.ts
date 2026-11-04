@@ -6,7 +6,7 @@ import { Locator } from "../locators/locator";
 import { createDemoGraph, DemoLink, DemoNode } from "./demo-graph";
 import { NodeLocator } from "./node-locator";
 
-const VERTEX_FONT = "20px Sans-Serif";
+const VERTEX_FONT = '20px "Lato", Sans-Serif';
 const VERTEX_HEIGHT = 40;
 const VERTEX_PADDING = 14;
 const DEMO_MARGIN = 48;

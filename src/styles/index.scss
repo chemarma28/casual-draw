@@ -2,6 +2,8 @@ $border-color: #2f3a4c;
 $green: #138a07;
 $dark-green: #246b1e;
 
+$font-sans: "Lato", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+
 $tooltip-bg: #f2e8cf;
 $tooltip-color: #2f3a4c;
 
@@ -15,6 +17,14 @@ html {
     height: 100%;
     margin: 0px;
     padding: 0px;
+}
+
+body {
+    font-family: $font-sans;
+}
+
+button {
+    font-family: inherit;
 }
 
 header {
@@ -185,6 +195,12 @@ header {
             top: 40%;
 
             background-color: $border-color;
+
+            svg {
+                display: block;
+                width: 16px;
+                height: 16px;
+            }
         }
     }
 }

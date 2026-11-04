@@ -322,13 +322,20 @@ export class Application {
         }
     }
 
-    private onLoad = () => {
+    private onLoad = async () => {
         this.canvasView.resize();
 
-        if (!this.initialCompileDone) {
-            this.initialCompileDone = true;
-            this.runCompile(true);
+        if (this.initialCompileDone) return;
+
+        this.initialCompileDone = true;
+
+        try {
+            await document.fonts.load('20px "Lato"');
+        } catch {
+            // Fall back to the system sans-serif if Lato cannot be loaded.
         }
+
+        this.runCompile(true);
     };
 
     private onResize = () => {

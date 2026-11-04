@@ -1,3 +1,5 @@
+import "@fontsource/lato/400.css";
+import "@fontsource/lato/700.css";
 import { Application } from "./app/application";
 import { byId } from "./dom";
 

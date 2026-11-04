@@ -9,7 +9,7 @@ import { buildDiagram, DiagramModel } from "./language/model";
 import { parse } from "./language/parser";
 import { adjacency, distance, hasIntersection, intersectArcAndRectangle, Rectangle, Vector } from "./math";
 
-const VERTEX_FONT = "20px Sans-Serif";
+const VERTEX_FONT = '20px "Lato", Sans-Serif';
 const VERTEX_WIDTH = 150;
 const BOUNDS_PADDING = 48;
 
